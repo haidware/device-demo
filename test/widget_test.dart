@@ -49,6 +49,14 @@ void main() {
     await tester.tap(find.byIcon(Icons.remove));
     await tester.pumpAndSettle();
     expect(find.text('N13,000'), findsNothing);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Jollof Rice'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add to Cart'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Checkout'));
     await tester.pumpAndSettle();
@@ -75,6 +83,19 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm Order'));
     await tester.pumpAndSettle();
     expect(find.text('Thank You!'), findsOneWidget);
+    expect(find.text('Your order will be confirmed shortly.'), findsOneWidget);
+    expect(
+      find.text('Please expect your order within the estimated time below.'),
+      findsOneWidget,
+    );
+    expect(find.text('Grilled Chicken × 1'), findsOneWidget);
+    expect(find.text('Jollof Rice × 1'), findsOneWidget);
+    expect(find.text('20–30 min'), findsNWidgets(2));
+    expect(find.text('Track Order'), findsNothing);
+    expect(find.text('Back to Home'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Back to Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Good afternoon 👋'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

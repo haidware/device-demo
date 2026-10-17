@@ -1,3 +1,5 @@
+const estimatedPreparationTime = '20–30 min';
+
 class MenuItem {
   const MenuItem({
     required this.id,

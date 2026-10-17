@@ -312,7 +312,7 @@ class DetailScreen extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  '20–30 min',
+                  estimatedPreparationTime,
                   style: TextStyle(
                     color: AppColors.text,
                     fontSize: 15,

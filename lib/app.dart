@@ -189,8 +189,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.confirmation:
         return ConfirmScreen(
           orderNumber: _orderNumber,
+          lines: _cartLines,
           onBackHome: () => go(AppPage.home),
-          onTrackOrder: () => go(AppPage.tracking),
         );
       case AppPage.tracking:
         return TrackScreen(

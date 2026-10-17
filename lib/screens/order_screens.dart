@@ -266,31 +266,31 @@ class ConfirmScreen extends StatelessWidget {
   const ConfirmScreen({
     super.key,
     required this.orderNumber,
+    required this.lines,
     required this.onBackHome,
-    required this.onTrackOrder,
   });
 
   final String orderNumber;
+  final List<CartLine> lines;
   final VoidCallback onBackHome;
-  final VoidCallback onTrackOrder;
 
   @override
   Widget build(BuildContext context) {
     return ScreenSurface(
-      padding: const EdgeInsets.fromLTRB(80, 25, 80, 22),
+      padding: const EdgeInsets.fromLTRB(80, 16, 80, 12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 75,
-            height: 75,
+            width: 64,
+            height: 64,
             decoration: const BoxDecoration(
               color: AppColors.green,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check, color: Colors.white, size: 46),
+            child: const Icon(Icons.check, color: Colors.white, size: 40),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           const Text(
             'Thank You!',
             style: TextStyle(
@@ -299,12 +299,12 @@ class ConfirmScreen extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           const Text(
-            'Your order has been received.',
+            'Your order will be confirmed shortly.',
             style: TextStyle(color: AppColors.text, fontSize: 17),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 7),
           const Text(
             'Order Number',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
@@ -318,27 +318,56 @@ class ConfirmScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           const Text(
-            'We will notify you when your order is being prepared.',
+            'Please expect your order within the estimated time below.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted, fontSize: 14),
           ),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: GoldButton(
-              label: 'Track Order',
-              onPressed: onTrackOrder,
-              icon: Icons.arrow_forward,
+          const SizedBox(height: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              child: InfoPanel(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Column(
+                  children: [
+                    for (var index = 0; index < lines.length; index++) ...[
+                      if (index > 0)
+                        const Divider(height: 8, color: AppColors.border),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${lines[index].item.name} × ${lines[index].quantity}',
+                              style: const TextStyle(
+                                color: AppColors.text,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            estimatedPreparationTime,
+                            style: TextStyle(
+                              color: AppColors.goldLight,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-          TextButton(
-            onPressed: onBackHome,
-            child: const Text(
-              'Back to Home',
-              style: TextStyle(color: AppColors.text, fontSize: 14),
-            ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            child: GoldButton(label: 'Back to Home', onPressed: onBackHome),
           ),
         ],
       ),
