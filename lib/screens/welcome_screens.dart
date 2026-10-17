@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
@@ -180,11 +181,26 @@ class LanguageScreen extends StatelessWidget {
   }
 }
 
-class RoomScreen extends StatelessWidget {
-  const RoomScreen({super.key, required this.onContinue, required this.onBack});
+class RoomScreen extends StatefulWidget {
+  const RoomScreen({
+    super.key,
+    required this.assignedId,
+    required this.onAssignedIdChanged,
+    required this.onContinue,
+    required this.onBack,
+  });
 
+  final String assignedId;
+  final ValueChanged<String> onAssignedIdChanged;
   final VoidCallback onContinue;
   final VoidCallback onBack;
+
+  @override
+  State<RoomScreen> createState() => _RoomScreenState();
+}
+
+class _RoomScreenState extends State<RoomScreen> {
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +208,8 @@ class RoomScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 22),
       child: Column(
         children: [
-          PageHeader(title: 'Room / Table Info', onBack: onBack),
-          const SizedBox(height: 4),
+          PageHeader(title: 'Room / Table Info', onBack: widget.onBack),
+          const SizedBox(height: 2),
           const Icon(
             Icons.room_service_outlined,
             color: AppColors.gold,
@@ -201,23 +217,56 @@ class RoomScreen extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           const Text(
-            'Welcome!',
-            style: TextStyle(color: AppColors.muted, fontSize: 17),
-          ),
-          const Text(
-            'Room 101',
+            'Enter your assigned ID',
             style: TextStyle(
               color: AppColors.text,
-              fontSize: 29,
+              fontSize: 24,
               fontWeight: FontWeight.w600,
             ),
           ),
           const Text(
-            'Scan to view menu & place your order',
+            'Enter the room or table number provided to you',
             style: TextStyle(color: AppColors.muted, fontSize: 15),
           ),
-          const SizedBox(height: 12),
-          const Expanded(child: Center(child: QrPlaceholder())),
+          Expanded(
+            child: Center(
+              child: SizedBox(
+                width: 360,
+                child: Form(
+                  key: _formKey,
+                  child: TextFormField(
+                    initialValue: widget.assignedId,
+                    onChanged: widget.onAssignedIdChanged,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: 'Room / table number',
+                      hintText: 'e.g. 101',
+                      prefixIcon: const Icon(Icons.tag),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.border,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.border,
+                        ),
+                      ),
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Room / table number is required'
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Need help? Contact reception',
@@ -228,64 +277,15 @@ class RoomScreen extends StatelessWidget {
             width: 250,
             child: GoldButton(
               label: 'Browse Menu',
-              onPressed: onContinue,
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  widget.onContinue();
+                }
+              },
               icon: Icons.arrow_forward,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class QrPlaceholder extends StatelessWidget {
-  const QrPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 208,
-      height: 208,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: 625,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 25,
-          mainAxisSpacing: 1,
-          crossAxisSpacing: 1,
-        ),
-        itemBuilder: (context, index) {
-          final row = index ~/ 25;
-          final column = index % 25;
-          final topLeft = row < 7 && column < 7;
-          final topRight = row < 7 && column > 17;
-          final bottomLeft = row > 17 && column < 7;
-          final isFinder = topLeft || topRight || bottomLeft;
-          final finderRow = topLeft || topRight ? row : row - 18;
-          final finderColumn = topRight ? column - 18 : column;
-          final finderPixel =
-              isFinder &&
-              (finderRow == 0 ||
-                  finderRow == 6 ||
-                  finderColumn == 0 ||
-                  finderColumn == 6 ||
-                  (finderRow >= 2 &&
-                      finderRow <= 4 &&
-                      finderColumn >= 2 &&
-                      finderColumn <= 4));
-          final filled =
-              finderPixel ||
-              (!isFinder && ((row * 13 + column * 7 + row * column) % 5 < 2));
-          return ColoredBox(
-            color: filled ? const Color(0xFF101010) : Colors.white,
-          );
-        },
       ),
     );
   }

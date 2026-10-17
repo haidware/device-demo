@@ -37,6 +37,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   MenuItem _selectedItem = menuItems.first;
   int _detailQuantity = 1;
   String _language = 'English';
+  String _assignedId = '';
   String _category = 'All';
   String _paymentMethod = 'Direct Bank Transfer';
   int _orderStatus = 1;
@@ -128,7 +129,14 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           onBack: back,
         );
       case AppPage.room:
-        return RoomScreen(onContinue: () => go(AppPage.home), onBack: back);
+        return RoomScreen(
+          assignedId: preview ? '' : _assignedId,
+          onAssignedIdChanged: preview
+              ? (_) {}
+              : (value) => _assignedId = value,
+          onContinue: () => go(AppPage.home),
+          onBack: back,
+        );
       case AppPage.home:
         return HomeScreen(
           cartCount: preview ? 2 : _cartCount,

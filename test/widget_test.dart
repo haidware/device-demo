@@ -23,8 +23,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.text('Scan to view menu & place your order'), findsNothing);
     await tester.tap(find.text('Browse Menu'));
     await tester.pumpAndSettle();
+    expect(find.text('Room / table number is required'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), '101');
+    await tester.tap(find.text('Browse Menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kitchen'), findsOneWidget);
 
     await tester.tap(find.text('Kitchen'));
     await tester.pumpAndSettle();
@@ -118,6 +125,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '101');
     await tester.tap(find.text('Browse Menu'));
     await tester.pumpAndSettle();
     expect(find.text('Kitchen'), findsOneWidget);
