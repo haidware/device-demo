@@ -26,3 +26,9 @@ fallbacks, and exposes `/health`.
 Connect the GitHub repository to a Railway service with the service root
 directory set to the repository root. Subsequent pushes to the connected branch
 trigger Railway deployments.
+
+## Install as a PWA
+
+The Flutter web release includes the Haidware app manifest and install icons.
+Deploy over HTTPS, then use the browser's install option (or Add to Home Screen
+on mobile) to install Haidware.
