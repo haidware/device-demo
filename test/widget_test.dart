@@ -48,11 +48,20 @@ void main() {
     await tester.tap(find.text('Checkout'));
     await tester.pumpAndSettle();
     expect(find.text('Pay at Reception'), findsNothing);
+    expect(find.text('Name on bank transfer'), findsOneWidget);
+    await tester.tap(find.text('I have paid'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter sender name'), findsAtLeastNWidgets(1));
+    await tester.enterText(find.byType(TextFormField), 'Jane Customer');
     await tester.tap(find.text('I have paid'));
     await tester.pumpAndSettle();
     expect(find.text('Payment message preview'), findsOneWidget);
     expect(find.textContaining('#HDW-101-00045'), findsOneWidget);
     expect(find.textContaining('Device ID Number: 101'), findsOneWidget);
+    expect(
+      find.textContaining('Name on bank transfer: Jane Customer'),
+      findsOneWidget,
+    );
     expect(
       find.text('Generated message preview. This is not sent automatically.'),
       findsOneWidget,

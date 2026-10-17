@@ -4,26 +4,48 @@ import '../models/order.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
-class CheckoutScreen extends StatelessWidget {
+class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({
     super.key,
     required this.total,
+    required this.senderName,
     required this.onConfirm,
     required this.onBack,
   });
 
   final int total;
-  final VoidCallback onConfirm;
+  final String senderName;
+  final ValueChanged<String> onConfirm;
   final VoidCallback onBack;
+
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _senderNameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _senderNameController = TextEditingController(text: widget.senderName);
+  }
+
+  @override
+  void dispose() {
+    _senderNameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ScreenSurface(
-      padding: const EdgeInsets.fromLTRB(30, 12, 30, 20),
+      padding: const EdgeInsets.fromLTRB(30, 8, 30, 14),
       child: Column(
         children: [
-          PageHeader(title: 'Checkout', onBack: onBack),
-          const SizedBox(height: 14),
+          PageHeader(title: 'Checkout', onBack: widget.onBack),
+          const SizedBox(height: 6),
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -31,21 +53,60 @@ class CheckoutScreen extends StatelessWidget {
               style: TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 3),
           const InfoPanel(
-            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
             child: Column(
               children: [
-                _BankRow(label: 'Bank', value: 'GTBank'),
-                _BankRow(label: 'Account Name', value: 'ABC Hotel'),
-                _BankRow(label: 'Account Number', value: '0123456789'),
+                _BankRow(label: 'Bank', value: 'GTBank', compact: true),
+                _BankRow(
+                  label: 'Account Name',
+                  value: 'ABC Hotel',
+                  compact: true,
+                ),
+                _BankRow(
+                  label: 'Account Number',
+                  value: '0123456789',
+                  compact: true,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           const Text(
-            'After transferring, tap “I have paid” to request payment confirmation from reception.',
+            'Use the sender name shown on your bank transfer.',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
+          ),
+          const SizedBox(height: 5),
+          Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: _senderNameController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Name on bank transfer',
+                hintText: 'Enter sender name',
+                prefixIcon: const Icon(Icons.person_outline),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter sender name'
+                  : null,
+            ),
           ),
           const Spacer(),
           Row(
@@ -56,7 +117,7 @@ class CheckoutScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.muted, fontSize: 17),
               ),
               Text(
-                formatPrice(total),
+                formatPrice(widget.total),
                 style: const TextStyle(
                   color: AppColors.goldLight,
                   fontSize: 21,
@@ -65,12 +126,16 @@ class CheckoutScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: GoldButton(
               label: 'I have paid',
-              onPressed: onConfirm,
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  widget.onConfirm(_senderNameController.text.trim());
+                }
+              },
               icon: Icons.arrow_forward,
             ),
           ),
@@ -85,6 +150,7 @@ class PaymentRequestScreen extends StatelessWidget {
     super.key,
     required this.orderNumber,
     required this.deviceIdNumber,
+    required this.senderName,
     required this.total,
     required this.onConfirmOrder,
     required this.onBack,
@@ -92,6 +158,7 @@ class PaymentRequestScreen extends StatelessWidget {
 
   final String orderNumber;
   final String deviceIdNumber;
+  final String senderName;
   final int total;
   final VoidCallback onConfirmOrder;
   final VoidCallback onBack;
@@ -122,6 +189,7 @@ class PaymentRequestScreen extends StatelessWidget {
                   'I have completed a bank transfer.\n'
                   'Order: $orderNumber\n'
                   'Device ID Number: $deviceIdNumber\n'
+                  'Name on bank transfer: $senderName\n'
                   'Amount: ${formatPrice(total)}\n\n'
                   'Please confirm receipt of payment.',
                   style: const TextStyle(
@@ -155,15 +223,20 @@ class PaymentRequestScreen extends StatelessWidget {
 }
 
 class _BankRow extends StatelessWidget {
-  const _BankRow({required this.label, required this.value});
+  const _BankRow({
+    required this.label,
+    required this.value,
+    this.compact = false,
+  });
 
   final String label;
   final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: compact ? 2 : 4),
       child: Row(
         children: [
           SizedBox(

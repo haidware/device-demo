@@ -36,6 +36,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   MenuItem _selectedItem = menuItems.first;
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
+  String _transferSenderName = '';
   String _category = 'All';
   int _orderStatus = 0;
   bool _notificationsCleared = false;
@@ -166,13 +167,18 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.checkout:
         return CheckoutScreen(
           total: _grandTotal,
-          onConfirm: () => go(AppPage.paymentRequestSent),
+          senderName: _transferSenderName,
+          onConfirm: (senderName) {
+            _transferSenderName = senderName;
+            go(AppPage.paymentRequestSent);
+          },
           onBack: back,
         );
       case AppPage.paymentRequestSent:
         return PaymentRequestScreen(
           orderNumber: _orderNumber,
           deviceIdNumber: _deviceIdNumber,
+          senderName: _transferSenderName,
           total: _grandTotal,
           onConfirmOrder: () {
             _orderStatus = 1;
