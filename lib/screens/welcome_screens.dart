@@ -79,14 +79,14 @@ class SplashScreen extends StatelessWidget {
 class StaffAccessScreen extends StatefulWidget {
   const StaffAccessScreen({
     super.key,
-    required this.staffId,
-    required this.onStaffIdChanged,
+    required this.deviceIdNumber,
+    required this.onDeviceIdNumberChanged,
     required this.onContinue,
     required this.onBack,
   });
 
-  final String staffId;
-  final ValueChanged<String> onStaffIdChanged;
+  final String deviceIdNumber;
+  final ValueChanged<String> onDeviceIdNumberChanged;
   final VoidCallback onContinue;
   final VoidCallback onBack;
 
@@ -120,7 +120,7 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
             ),
           ),
           const Text(
-            'Enter your assigned staff ID to continue',
+            'Enter the assigned device ID number to continue',
             style: TextStyle(color: AppColors.muted, fontSize: 15),
           ),
           Expanded(
@@ -130,14 +130,14 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
                 child: Form(
                   key: _formKey,
                   child: TextFormField(
-                    initialValue: widget.staffId,
-                    onChanged: widget.onStaffIdChanged,
+                    initialValue: widget.deviceIdNumber,
+                    onChanged: widget.onDeviceIdNumberChanged,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
-                      labelText: 'Staff ID',
-                      hintText: 'Enter your staff ID',
+                      labelText: 'Device ID Number',
+                      hintText: 'Enter device ID number',
                       prefixIcon: const Icon(Icons.badge_outlined),
                       filled: true,
                       fillColor: AppColors.surface,
@@ -151,7 +151,7 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
                       ),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Staff ID is required'
+                        ? 'Device ID number is required'
                         : null,
                   ),
                 ),

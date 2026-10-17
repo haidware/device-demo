@@ -18,12 +18,12 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.text('Hotel staff sign in'), findsOneWidget);
-    expect(find.text('Staff ID'), findsOneWidget);
+    expect(find.text('Device ID Number'), findsOneWidget);
     expect(find.byType(TextFormField), findsOneWidget);
     expect(find.text('Scan to view menu & place your order'), findsNothing);
     await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
-    expect(find.text('Staff ID is required'), findsOneWidget);
+    expect(find.text('Device ID number is required'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField), '101');
     await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
@@ -53,7 +53,7 @@ void main() {
     expect(find.text('WhatsApp message sent'), findsOneWidget);
     expect(find.text('Demo simulation'), findsOneWidget);
     expect(find.textContaining('#HDW-101-00045'), findsOneWidget);
-    expect(find.textContaining('Staff ID: 101'), findsOneWidget);
+    expect(find.textContaining('Device ID Number: 101'), findsOneWidget);
     expect(find.textContaining('was not delivered'), findsOneWidget);
     expect(find.text('Reception Dashboard'), findsNothing);
     expect(tester.takeException(), isNull);

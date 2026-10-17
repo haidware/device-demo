@@ -84,13 +84,13 @@ class PaymentRequestScreen extends StatelessWidget {
   const PaymentRequestScreen({
     super.key,
     required this.orderNumber,
-    required this.staffId,
+    required this.deviceIdNumber,
     required this.total,
     required this.onBack,
   });
 
   final String orderNumber;
-  final String staffId;
+  final String deviceIdNumber;
   final int total;
   final VoidCallback onBack;
 
@@ -124,7 +124,7 @@ class PaymentRequestScreen extends StatelessWidget {
               'Hello Reception,\n'
               'I have completed a bank transfer.\n'
               'Order: $orderNumber\n'
-              'Staff ID: $staffId\n'
+              'Device ID Number: $deviceIdNumber\n'
               'Amount: ${formatPrice(total)}\n'
               'Please confirm receipt of payment.',
               style: TextStyle(color: AppColors.text, fontSize: 14),

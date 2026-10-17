@@ -35,7 +35,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   final Map<String, int> _cart = {};
   MenuItem _selectedItem = menuItems.first;
   int _detailQuantity = 1;
-  String _staffId = '';
+  String _deviceIdNumber = '';
   String _category = 'All';
   final int _orderStatus = 0;
   bool _notificationsCleared = false;
@@ -116,8 +116,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         return SplashScreen(onContinue: () => go(AppPage.staffAccess));
       case AppPage.staffAccess:
         return StaffAccessScreen(
-          staffId: _staffId,
-          onStaffIdChanged: (value) => _staffId = value,
+          deviceIdNumber: _deviceIdNumber,
+          onDeviceIdNumberChanged: (value) => _deviceIdNumber = value,
           onContinue: () => go(AppPage.home),
           onBack: back,
         );
@@ -172,7 +172,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.paymentRequestSent:
         return PaymentRequestScreen(
           orderNumber: _orderNumber,
-          staffId: _staffId,
+          deviceIdNumber: _deviceIdNumber,
           total: _grandTotal,
           onBack: back,
         );
