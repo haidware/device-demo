@@ -1,0 +1,14 @@
+.git
+.dart_tool
+.idea
+.metadata
+.pub-cache
+.pub
+build
+coverage
+android
+ios
+linux
+macos
+windows
+test

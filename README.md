@@ -1,16 +1,28 @@
-# device_demo
+# Haidware Hospitality Demo
 
-A new Flutter project.
+A Flutter application demoing the Haidware hospitality ordering experience.
 
-## Getting Started
+## Run locally
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+Run the widget tests and analyzer with:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```sh
+flutter test
+flutter analyze
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Deploy on Railway
+
+The repository includes a multi-stage `Dockerfile`. Railway detects it on the
+project's root branch, builds the Flutter web release, and serves it with Nginx.
+The server listens on Railway's injected `PORT`, supports Flutter web route
+fallbacks, and exposes `/health`.
+
+Connect the GitHub repository to a Railway service with the service root
+directory set to the repository root. Subsequent pushes to the connected branch
+trigger Railway deployments.
