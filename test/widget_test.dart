@@ -33,6 +33,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Grilled Chicken'));
     await tester.pumpAndSettle();
+    expect(find.text('Estimated order time'), findsOneWidget);
+    expect(find.text('20–30 min'), findsOneWidget);
+    final estimateY = tester.getTopLeft(find.text('Estimated order time')).dy;
+    final addToCartY = tester.getTopLeft(find.text('Add to Cart')).dy;
+    expect(estimateY, lessThan(addToCartY));
     await tester.tap(find.text('Add to Cart'));
     await tester.pumpAndSettle();
     expect(find.text('Your Cart'), findsOneWidget);

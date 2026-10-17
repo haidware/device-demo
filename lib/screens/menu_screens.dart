@@ -295,6 +295,34 @@ class DetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          InfoPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.schedule_outlined,
+                  color: AppColors.goldLight,
+                  size: 20,
+                ),
+                const SizedBox(width: 9),
+                const Expanded(
+                  child: Text(
+                    'Estimated order time',
+                    style: TextStyle(color: AppColors.muted, fontSize: 14),
+                  ),
+                ),
+                const Text(
+                  '20–30 min',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: GoldButton(
