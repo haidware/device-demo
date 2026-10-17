@@ -7,16 +7,12 @@ import '../widgets/app_widgets.dart';
 class CheckoutScreen extends StatelessWidget {
   const CheckoutScreen({
     super.key,
-    required this.paymentMethod,
     required this.total,
-    required this.onSelectPayment,
     required this.onConfirm,
     required this.onBack,
   });
 
-  final String paymentMethod;
   final int total;
-  final ValueChanged<String> onSelectPayment;
   final VoidCallback onConfirm;
   final VoidCallback onBack;
 
@@ -27,39 +23,30 @@ class CheckoutScreen extends StatelessWidget {
       child: Column(
         children: [
           PageHeader(title: 'Checkout', onBack: onBack),
-          const SizedBox(height: 6),
-          _PaymentOption(
-            title: 'Direct Bank Transfer',
-            selected: paymentMethod == 'Direct Bank Transfer',
-            onTap: () => onSelectPayment('Direct Bank Transfer'),
-          ),
-          const SizedBox(height: 10),
-          _PaymentOption(
-            title: 'Pay at Reception',
-            selected: paymentMethod == 'Pay at Reception',
-            onTap: () => onSelectPayment('Pay at Reception'),
-          ),
-          if (paymentMethod == 'Direct Bank Transfer') ...[
-            const SizedBox(height: 14),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Please make payment to:',
-                style: TextStyle(color: AppColors.muted, fontSize: 14),
-              ),
+          const SizedBox(height: 14),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Please make payment to:',
+              style: TextStyle(color: AppColors.muted, fontSize: 14),
             ),
-            const SizedBox(height: 5),
-            const InfoPanel(
-              padding: EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-              child: Column(
-                children: [
-                  _BankRow(label: 'Bank', value: 'GTBank'),
-                  _BankRow(label: 'Account Name', value: 'ABC Hotel'),
-                  _BankRow(label: 'Account Number', value: '0123456789'),
-                ],
-              ),
+          ),
+          const SizedBox(height: 5),
+          const InfoPanel(
+            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+            child: Column(
+              children: [
+                _BankRow(label: 'Bank', value: 'GTBank'),
+                _BankRow(label: 'Account Name', value: 'ABC Hotel'),
+                _BankRow(label: 'Account Number', value: '0123456789'),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'After transferring, tap “I have paid” to request payment confirmation from reception.',
+            style: TextStyle(color: AppColors.muted, fontSize: 14),
+          ),
           const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -93,50 +80,64 @@ class CheckoutScreen extends StatelessWidget {
   }
 }
 
-class _PaymentOption extends StatelessWidget {
-  const _PaymentOption({
-    required this.title,
-    required this.selected,
-    required this.onTap,
+class PaymentRequestScreen extends StatelessWidget {
+  const PaymentRequestScreen({
+    super.key,
+    required this.orderNumber,
+    required this.staffId,
+    required this.total,
+    required this.onBack,
   });
 
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
+  final String orderNumber;
+  final String staffId;
+  final int total;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(9),
-      child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(
-            color: selected ? AppColors.gold : AppColors.border,
+    return ScreenSurface(
+      padding: const EdgeInsets.fromLTRB(35, 18, 35, 22),
+      child: Column(
+        children: [
+          PageHeader(title: 'Payment Request', onBack: onBack),
+          const Spacer(),
+          const Icon(Icons.chat, color: Color(0xFF25D366), size: 50),
+          const SizedBox(height: 10),
+          const Text(
+            'WhatsApp message sent',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: selected ? AppColors.gold : AppColors.muted,
-              size: 20,
+          const SizedBox(height: 8),
+          const Text(
+            'Demo simulation',
+            style: TextStyle(color: AppColors.goldLight, fontSize: 15),
+          ),
+          const SizedBox(height: 12),
+          InfoPanel(
+            child: Text(
+              'Hello Reception,\n'
+              'I have completed a bank transfer.\n'
+              'Order: $orderNumber\n'
+              'Staff ID: $staffId\n'
+              'Amount: ${formatPrice(total)}\n'
+              'Please confirm receipt of payment.',
+              style: TextStyle(color: AppColors.text, fontSize: 14),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(color: AppColors.text, fontSize: 16),
-              ),
-            ),
-            if (selected)
-              const Icon(Icons.check_circle, color: AppColors.gold, size: 19),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'This message is simulated and was not delivered. Connect a reception WhatsApp number and messaging service to enable sending.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+          const Spacer(),
+        ],
       ),
     );
   }

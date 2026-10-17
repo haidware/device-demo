@@ -37,8 +37,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   int _detailQuantity = 1;
   String _staffId = '';
   String _category = 'All';
-  String _paymentMethod = 'Direct Bank Transfer';
-  int _orderStatus = 1;
+  final int _orderStatus = 0;
   bool _notificationsCleared = false;
   static const _orderNumber = '#HDW-101-00045';
 
@@ -166,13 +165,15 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         );
       case AppPage.checkout:
         return CheckoutScreen(
-          paymentMethod: _paymentMethod,
           total: _grandTotal,
-          onSelectPayment: (value) => setState(() => _paymentMethod = value),
-          onConfirm: () {
-            _orderStatus = 2;
-            go(AppPage.confirmation);
-          },
+          onConfirm: () => go(AppPage.paymentRequestSent),
+          onBack: back,
+        );
+      case AppPage.paymentRequestSent:
+        return PaymentRequestScreen(
+          orderNumber: _orderNumber,
+          staffId: _staffId,
+          total: _grandTotal,
           onBack: back,
         );
       case AppPage.confirmation:

@@ -33,3 +33,10 @@ deployments.
 The Flutter web release includes the Haidware app manifest and install icons.
 Deploy over HTTPS, then use the browser's install option (or Add to Home Screen
 on mobile) to install Haidware.
+
+## Payment confirmation demo
+
+Checkout uses bank transfer and displays a simulated WhatsApp confirmation
+message after staff select **I have paid**. The message is shown in the app only;
+no WhatsApp message is delivered until a reception number and messaging service
+are configured.

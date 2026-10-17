@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:device_demo/app.dart';
 
 void main() {
-  testWidgets('staff can place and inspect an order', (tester) async {
+  testWidgets('staff can send a simulated payment confirmation', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -45,17 +47,15 @@ void main() {
 
     await tester.tap(find.text('Checkout'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Pay at Reception'));
-    await tester.pumpAndSettle();
+    expect(find.text('Pay at Reception'), findsNothing);
     await tester.tap(find.text('I have paid'));
     await tester.pumpAndSettle();
-    expect(find.text('#HDW-101-00045'), findsOneWidget);
-
-    await tester.tap(find.text('Track Order'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Details'));
-    await tester.pumpAndSettle();
-    expect(find.text('Grilled Chicken x 1'), findsOneWidget);
+    expect(find.text('WhatsApp message sent'), findsOneWidget);
+    expect(find.text('Demo simulation'), findsOneWidget);
+    expect(find.textContaining('#HDW-101-00045'), findsOneWidget);
+    expect(find.textContaining('Staff ID: 101'), findsOneWidget);
+    expect(find.textContaining('was not delivered'), findsOneWidget);
+    expect(find.text('Reception Dashboard'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
