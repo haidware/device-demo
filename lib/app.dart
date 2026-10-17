@@ -4,7 +4,6 @@ import 'models/app_page.dart';
 import 'models/order.dart';
 import 'screens/menu_screens.dart';
 import 'screens/order_screens.dart';
-import 'screens/screen_gallery.dart';
 import 'screens/welcome_screens.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_widgets.dart';
@@ -31,12 +30,11 @@ class HospitalityOrderDemo extends StatefulWidget {
 }
 
 class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
-  AppPage _page = AppPage.overview;
+  AppPage _page = AppPage.splash;
   final List<AppPage> _history = [];
   final Map<String, int> _cart = {};
   MenuItem _selectedItem = menuItems.first;
   int _detailQuantity = 1;
-  String _language = 'English';
   String _assignedId = '';
   String _category = 'All';
   String _paymentMethod = 'Direct Bank Transfer';
@@ -66,7 +64,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
 
   void _back() {
     setState(() {
-      _page = _history.isEmpty ? AppPage.overview : _history.removeLast();
+      _page = _history.isEmpty ? AppPage.splash : _history.removeLast();
     });
   }
 
@@ -111,37 +109,24 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
     _navigate(AppPage.cart);
   }
 
-  Widget _buildPage(AppPage page, {bool preview = false}) {
-    final go = preview ? _ignore : _navigate;
-    final back = preview ? _ignore : _back;
+  Widget _buildPage(AppPage page) {
+    final go = _navigate;
+    final back = _back;
     switch (page) {
-      case AppPage.overview:
-        return const SizedBox.shrink();
       case AppPage.splash:
-        return SplashScreen(onContinue: () => go(AppPage.language));
-      case AppPage.language:
-        return LanguageScreen(
-          selectedLanguage: preview ? 'English' : _language,
-          onSelectLanguage: preview
-              ? (_) {}
-              : (language) => setState(() => _language = language),
-          onContinue: () => go(AppPage.room),
-          onBack: back,
-        );
+        return SplashScreen(onContinue: () => go(AppPage.room));
       case AppPage.room:
         return RoomScreen(
-          assignedId: preview ? '' : _assignedId,
-          onAssignedIdChanged: preview
-              ? (_) {}
-              : (value) => _assignedId = value,
+          assignedId: _assignedId,
+          onAssignedIdChanged: (value) => _assignedId = value,
           onContinue: () => go(AppPage.home),
           onBack: back,
         );
       case AppPage.home:
         return HomeScreen(
-          cartCount: preview ? 2 : _cartCount,
-          onOpenKitchen: preview ? _ignore : _openKitchen,
-          onOpenBar: preview ? _ignore : _openBar,
+          cartCount: _cartCount,
+          onOpenKitchen: _openKitchen,
+          onOpenBar: _openBar,
           onOpenServices: () => go(AppPage.room),
           onOpenRoom: () => go(AppPage.room),
           onOpenCart: () => go(AppPage.cart),
@@ -150,63 +135,44 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.kitchen:
         return KitchenScreen(
           items: menuItems,
-          category: preview ? 'All' : _category,
-          cartCount: preview ? 2 : _cartCount,
-          onSelectCategory: preview
-              ? (_) {}
-              : (value) => setState(() => _category = value),
+          category: _category,
+          cartCount: _cartCount,
+          onSelectCategory: (value) => setState(() => _category = value),
           onOpenCart: () => go(AppPage.cart),
-          onSelectItem: preview ? (_) {} : _openItem,
+          onSelectItem: _openItem,
           onBack: back,
         );
       case AppPage.detail:
         return DetailScreen(
-          item: preview ? menuItems.first : _selectedItem,
-          quantity: preview ? 1 : _detailQuantity,
-          onDecrement: preview
-              ? _ignore
-              : () => setState(() {
-                  if (_detailQuantity > 1) _detailQuantity--;
-                }),
-          onIncrement: preview
-              ? _ignore
-              : () => setState(() => _detailQuantity++),
-          onAddToCart: preview ? _ignore : _addSelectedToCart,
+          item: _selectedItem,
+          quantity: _detailQuantity,
+          onDecrement: () => setState(() {
+            if (_detailQuantity > 1) _detailQuantity--;
+          }),
+          onIncrement: () => setState(() => _detailQuantity++),
+          onAddToCart: _addSelectedToCart,
           onBack: back,
         );
       case AppPage.cart:
-        final lines = preview
-            ? [
-                CartLine(item: menuItems[0], quantity: 1),
-                CartLine(item: menuItems[1], quantity: 1),
-              ]
-            : _cartLines;
-        final subtotal = lines.fold(0, (total, line) => total + line.total);
-        final service = (subtotal * 0.1).round();
         return CartScreen(
-          lines: lines,
-          subtotal: subtotal,
-          serviceCharge: service,
-          total: subtotal + service,
-          onChangeQuantity: preview ? (_, __) {} : _changeCartQuantity,
-          onCheckout: () => go(
-            !preview && _cartLines.isEmpty ? AppPage.kitchen : AppPage.checkout,
-          ),
+          lines: _cartLines,
+          subtotal: _subtotal,
+          serviceCharge: _serviceCharge,
+          total: _grandTotal,
+          onChangeQuantity: _changeCartQuantity,
+          onCheckout: () =>
+              go(_cartLines.isEmpty ? AppPage.kitchen : AppPage.checkout),
           onBack: back,
         );
       case AppPage.checkout:
         return CheckoutScreen(
-          paymentMethod: preview ? 'Direct Bank Transfer' : _paymentMethod,
-          total: preview ? 12650 : _grandTotal,
-          onSelectPayment: preview
-              ? (_) {}
-              : (value) => setState(() => _paymentMethod = value),
-          onConfirm: preview
-              ? _ignore
-              : () {
-                  _orderStatus = 2;
-                  go(AppPage.confirmation);
-                },
+          paymentMethod: _paymentMethod,
+          total: _grandTotal,
+          onSelectPayment: (value) => setState(() => _paymentMethod = value),
+          onConfirm: () {
+            _orderStatus = 2;
+            go(AppPage.confirmation);
+          },
           onBack: back,
         );
       case AppPage.confirmation:
@@ -226,56 +192,42 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.orderDetails:
         return DetailsScreen(
           orderNumber: _orderNumber,
-          lines: preview
-              ? [
-                  CartLine(item: menuItems[0], quantity: 1),
-                  CartLine(item: menuItems[1], quantity: 1),
-                ]
-              : _cartLines,
-          total: preview ? 12650 : _grandTotal,
+          lines: _cartLines,
+          total: _grandTotal,
           onBackHome: () => go(AppPage.home),
           onBack: back,
         );
       case AppPage.notifications:
         return NotifyScreen(
           onBack: back,
-          isCleared: !preview && _notificationsCleared,
-          onClear: preview
-              ? _ignore
-              : () => setState(() => _notificationsCleared = true),
+          isCleared: _notificationsCleared,
+          onClear: () => setState(() => _notificationsCleared = true),
         );
       case AppPage.designSystem:
         return const DesignSystemScreen();
     }
   }
 
-  static void _ignore() {}
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _page == AppPage.overview,
+      canPop: _page == AppPage.splash && _history.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _page != AppPage.overview) _back();
+        if (!didPop) _back();
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: _page == AppPage.overview
-            ? ScreenGallery(
-                onOpen: _navigate,
-                screenBuilder: (page) => _buildPage(page, preview: true),
-              )
-            : SafeArea(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1100),
-                      child: DeviceCanvas(child: _buildPage(_page)),
-                    ),
-                  ),
-                ),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: DeviceCanvas(child: _buildPage(_page)),
               ),
+            ),
+          ),
+        ),
       ),
     );
   }

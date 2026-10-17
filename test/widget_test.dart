@@ -11,16 +11,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const HaidwareApp());
-    expect(find.text('Interactive screen overview'), findsOneWidget);
-
-    await tester.tap(find.text('Start walkthrough'));
-    await tester.pumpAndSettle();
     expect(find.text('H A I D W A R E'), findsOneWidget);
 
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Español'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.byType(TextFormField), findsOneWidget);
@@ -65,7 +57,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('notifications can be cleared from the screen overview', (
+  testWidgets('guest can clear notifications after onboarding', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -75,7 +67,12 @@ void main() {
 
     await tester.pumpWidget(const HaidwareApp());
 
-    await tester.tap(find.text('12. NOTIFICATION'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '101');
+    await tester.tap(find.text('Browse Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Notifications'));
     await tester.pumpAndSettle();
     expect(find.text('Notifications'), findsOneWidget);
 
@@ -92,7 +89,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const HaidwareApp());
-    await tester.tap(find.text('4. HOME - CATEGORY'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '101');
+    await tester.tap(find.text('Browse Menu'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Bar'));
@@ -115,14 +115,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-
     await tester.pumpWidget(const HaidwareApp());
-    await tester.tap(find.text('Start walkthrough'));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(const HaidwareApp());
+    expect(find.text('H A I D W A R E'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '101');

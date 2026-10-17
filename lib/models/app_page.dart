@@ -1,7 +1,5 @@
 enum AppPage {
-  overview,
   splash,
-  language,
   room,
   home,
   kitchen,
@@ -17,9 +15,7 @@ enum AppPage {
 
 extension AppPageLabel on AppPage {
   String get label => switch (this) {
-    AppPage.overview => 'Screen Overview',
     AppPage.splash => 'Splash Screen',
-    AppPage.language => 'Language Selection',
     AppPage.room => 'Room / Table Info',
     AppPage.home => 'Home - Category',
     AppPage.kitchen => 'Kitchen Menu',

@@ -76,111 +76,6 @@ class SplashScreen extends StatelessWidget {
   }
 }
 
-class LanguageScreen extends StatelessWidget {
-  const LanguageScreen({
-    super.key,
-    required this.selectedLanguage,
-    required this.onSelectLanguage,
-    required this.onContinue,
-    required this.onBack,
-  });
-
-  final String selectedLanguage;
-  final ValueChanged<String> onSelectLanguage;
-  final VoidCallback onContinue;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    const languages = ['English', 'Français', 'Español', 'العربية'];
-    return ScreenSurface(
-      padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 25),
-      child: Column(
-        children: [
-          PageHeader(title: 'Language', onBack: onBack),
-          const SizedBox(height: 12),
-          const Icon(Icons.language, color: AppColors.gold, size: 43),
-          const SizedBox(height: 12),
-          const Text(
-            'Select Language',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Choose your preferred language',
-            style: TextStyle(color: AppColors.muted, fontSize: 15),
-          ),
-          const SizedBox(height: 15),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final language in languages)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () => onSelectLanguage(language),
-                        child: Container(
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: selectedLanguage == language
-                                ? const Color(0xFF211A0D)
-                                : AppColors.surface,
-                            border: Border.all(
-                              color: selectedLanguage == language
-                                  ? AppColors.gold
-                                  : AppColors.border,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (selectedLanguage == language)
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: AppColors.gold,
-                                  size: 19,
-                                ),
-                              if (selectedLanguage == language)
-                                const SizedBox(width: 7),
-                              Text(
-                                language,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 15),
-          SizedBox(
-            width: 270,
-            child: GoldButton(
-              label: 'Continue',
-              onPressed: onContinue,
-              icon: Icons.arrow_forward,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class RoomScreen extends StatefulWidget {
   const RoomScreen({
     super.key,
@@ -248,15 +143,11 @@ class _RoomScreenState extends State<RoomScreen> {
                       fillColor: AppColors.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AppColors.border,
-                        ),
+                        borderSide: const BorderSide(color: AppColors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AppColors.border,
-                        ),
+                        borderSide: const BorderSide(color: AppColors.border),
                       ),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
