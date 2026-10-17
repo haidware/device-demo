@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:device_demo/app.dart';
 
 void main() {
-  testWidgets('guest can place and inspect an order', (tester) async {
+  testWidgets('staff can place and inspect an order', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -15,13 +15,15 @@ void main() {
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
+    expect(find.text('Hotel staff sign in'), findsOneWidget);
+    expect(find.text('Staff ID'), findsOneWidget);
     expect(find.byType(TextFormField), findsOneWidget);
     expect(find.text('Scan to view menu & place your order'), findsNothing);
-    await tester.tap(find.text('Browse Menu'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
-    expect(find.text('Room / table number is required'), findsOneWidget);
+    expect(find.text('Staff ID is required'), findsOneWidget);
     await tester.enterText(find.byType(TextFormField), '101');
-    await tester.tap(find.text('Browse Menu'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
     expect(find.text('Kitchen'), findsOneWidget);
 
@@ -57,9 +59,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('guest can clear notifications after onboarding', (
-    tester,
-  ) async {
+  testWidgets('staff can clear notifications after signing in', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -70,7 +70,7 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '101');
-    await tester.tap(find.text('Browse Menu'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Notifications'));
     await tester.pumpAndSettle();
@@ -92,7 +92,7 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '101');
-    await tester.tap(find.text('Browse Menu'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Bar'));
@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Good afternoon 👋'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('Room / Table Info'), findsOneWidget);
+    expect(find.text('Staff Login'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -123,7 +123,7 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '101');
-    await tester.tap(find.text('Browse Menu'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
     expect(find.text('Kitchen'), findsOneWidget);
     expect(tester.takeException(), isNull);

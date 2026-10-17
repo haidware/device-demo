@@ -76,25 +76,25 @@ class SplashScreen extends StatelessWidget {
   }
 }
 
-class RoomScreen extends StatefulWidget {
-  const RoomScreen({
+class StaffAccessScreen extends StatefulWidget {
+  const StaffAccessScreen({
     super.key,
-    required this.assignedId,
-    required this.onAssignedIdChanged,
+    required this.staffId,
+    required this.onStaffIdChanged,
     required this.onContinue,
     required this.onBack,
   });
 
-  final String assignedId;
-  final ValueChanged<String> onAssignedIdChanged;
+  final String staffId;
+  final ValueChanged<String> onStaffIdChanged;
   final VoidCallback onContinue;
   final VoidCallback onBack;
 
   @override
-  State<RoomScreen> createState() => _RoomScreenState();
+  State<StaffAccessScreen> createState() => _StaffAccessScreenState();
 }
 
-class _RoomScreenState extends State<RoomScreen> {
+class _StaffAccessScreenState extends State<StaffAccessScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -103,7 +103,7 @@ class _RoomScreenState extends State<RoomScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 22),
       child: Column(
         children: [
-          PageHeader(title: 'Room / Table Info', onBack: widget.onBack),
+          PageHeader(title: 'Staff Login', onBack: widget.onBack),
           const SizedBox(height: 2),
           const Icon(
             Icons.room_service_outlined,
@@ -112,7 +112,7 @@ class _RoomScreenState extends State<RoomScreen> {
           ),
           const SizedBox(height: 2),
           const Text(
-            'Enter your assigned ID',
+            'Hotel staff sign in',
             style: TextStyle(
               color: AppColors.text,
               fontSize: 24,
@@ -120,7 +120,7 @@ class _RoomScreenState extends State<RoomScreen> {
             ),
           ),
           const Text(
-            'Enter the room or table number provided to you',
+            'Enter your assigned staff ID to continue',
             style: TextStyle(color: AppColors.muted, fontSize: 15),
           ),
           Expanded(
@@ -130,15 +130,15 @@ class _RoomScreenState extends State<RoomScreen> {
                 child: Form(
                   key: _formKey,
                   child: TextFormField(
-                    initialValue: widget.assignedId,
-                    onChanged: widget.onAssignedIdChanged,
+                    initialValue: widget.staffId,
+                    onChanged: widget.onStaffIdChanged,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
-                      labelText: 'Room / table number',
-                      hintText: 'e.g. 101',
-                      prefixIcon: const Icon(Icons.tag),
+                      labelText: 'Staff ID',
+                      hintText: 'Enter your staff ID',
+                      prefixIcon: const Icon(Icons.badge_outlined),
                       filled: true,
                       fillColor: AppColors.surface,
                       border: OutlineInputBorder(
@@ -151,7 +151,7 @@ class _RoomScreenState extends State<RoomScreen> {
                       ),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Room / table number is required'
+                        ? 'Staff ID is required'
                         : null,
                   ),
                 ),
@@ -160,14 +160,14 @@ class _RoomScreenState extends State<RoomScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Need help? Contact reception',
+            'Need access? Contact your manager',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: 250,
             child: GoldButton(
-              label: 'Browse Menu',
+              label: 'Sign In',
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   widget.onContinue();

@@ -1,6 +1,6 @@
 enum AppPage {
   splash,
-  room,
+  staffAccess,
   home,
   kitchen,
   detail,
@@ -16,7 +16,7 @@ enum AppPage {
 extension AppPageLabel on AppPage {
   String get label => switch (this) {
     AppPage.splash => 'Splash Screen',
-    AppPage.room => 'Room / Table Info',
+    AppPage.staffAccess => 'Staff Login',
     AppPage.home => 'Home - Category',
     AppPage.kitchen => 'Kitchen Menu',
     AppPage.detail => 'Item Detail',

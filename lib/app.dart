@@ -35,7 +35,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   final Map<String, int> _cart = {};
   MenuItem _selectedItem = menuItems.first;
   int _detailQuantity = 1;
-  String _assignedId = '';
+  String _staffId = '';
   String _category = 'All';
   String _paymentMethod = 'Direct Bank Transfer';
   int _orderStatus = 1;
@@ -114,11 +114,11 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
     final back = _back;
     switch (page) {
       case AppPage.splash:
-        return SplashScreen(onContinue: () => go(AppPage.room));
-      case AppPage.room:
-        return RoomScreen(
-          assignedId: _assignedId,
-          onAssignedIdChanged: (value) => _assignedId = value,
+        return SplashScreen(onContinue: () => go(AppPage.staffAccess));
+      case AppPage.staffAccess:
+        return StaffAccessScreen(
+          staffId: _staffId,
+          onStaffIdChanged: (value) => _staffId = value,
           onContinue: () => go(AppPage.home),
           onBack: back,
         );
@@ -127,8 +127,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           cartCount: _cartCount,
           onOpenKitchen: _openKitchen,
           onOpenBar: _openBar,
-          onOpenServices: () => go(AppPage.room),
-          onOpenRoom: () => go(AppPage.room),
+          onOpenServices: () => go(AppPage.staffAccess),
+          onOpenRoom: () => go(AppPage.staffAccess),
           onOpenCart: () => go(AppPage.cart),
           onOpenNotifications: () => go(AppPage.notifications),
         );
