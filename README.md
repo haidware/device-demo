@@ -36,7 +36,7 @@ on mobile) to install Haidware.
 
 ## Payment confirmation demo
 
-Checkout uses bank transfer and displays a simulated WhatsApp confirmation
-message after staff select **I have paid**. The message is shown in the app only;
-no WhatsApp message is delivered until a reception number and messaging service
-are configured.
+Checkout uses bank transfer and generates a reception payment-message preview
+after staff select **I have paid**. Staff can review the message and select
+**Confirm Order**. The preview is shown in the app only; no WhatsApp message is
+sent.

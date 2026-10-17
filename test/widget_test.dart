@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:device_demo/app.dart';
 
 void main() {
-  testWidgets('staff can send a simulated payment confirmation', (
+  testWidgets('staff can review payment message and confirm order', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -50,12 +50,17 @@ void main() {
     expect(find.text('Pay at Reception'), findsNothing);
     await tester.tap(find.text('I have paid'));
     await tester.pumpAndSettle();
-    expect(find.text('WhatsApp message sent'), findsOneWidget);
-    expect(find.text('Demo simulation'), findsOneWidget);
+    expect(find.text('Payment message preview'), findsOneWidget);
     expect(find.textContaining('#HDW-101-00045'), findsOneWidget);
     expect(find.textContaining('Device ID Number: 101'), findsOneWidget);
-    expect(find.textContaining('was not delivered'), findsOneWidget);
+    expect(
+      find.text('Generated message preview. This is not sent automatically.'),
+      findsOneWidget,
+    );
     expect(find.text('Reception Dashboard'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm Order'));
+    await tester.pumpAndSettle();
+    expect(find.text('Thank You!'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

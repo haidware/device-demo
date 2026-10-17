@@ -37,7 +37,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
   String _category = 'All';
-  final int _orderStatus = 0;
+  int _orderStatus = 0;
   bool _notificationsCleared = false;
   static const _orderNumber = '#HDW-101-00045';
 
@@ -174,6 +174,10 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           orderNumber: _orderNumber,
           deviceIdNumber: _deviceIdNumber,
           total: _grandTotal,
+          onConfirmOrder: () {
+            _orderStatus = 1;
+            go(AppPage.confirmation);
+          },
           onBack: back,
         );
       case AppPage.confirmation:

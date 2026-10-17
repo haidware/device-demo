@@ -86,12 +86,14 @@ class PaymentRequestScreen extends StatelessWidget {
     required this.orderNumber,
     required this.deviceIdNumber,
     required this.total,
+    required this.onConfirmOrder,
     required this.onBack,
   });
 
   final String orderNumber;
   final String deviceIdNumber;
   final int total;
+  final VoidCallback onConfirmOrder;
   final VoidCallback onBack;
 
   @override
@@ -100,43 +102,52 @@ class PaymentRequestScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(35, 18, 35, 22),
       child: Column(
         children: [
-          PageHeader(title: 'Payment Request', onBack: onBack),
-          const Spacer(),
-          const Icon(Icons.chat, color: Color(0xFF25D366), size: 50),
-          const SizedBox(height: 10),
+          PageHeader(title: 'Confirm Order', onBack: onBack),
+          const SizedBox(height: 8),
           const Text(
-            'WhatsApp message sent',
-            textAlign: TextAlign.center,
+            'Payment message preview',
+            textAlign: TextAlign.left,
             style: TextStyle(
               color: AppColors.text,
-              fontSize: 24,
+              fontSize: 19,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Demo simulation',
-            style: TextStyle(color: AppColors.goldLight, fontSize: 15),
-          ),
           const SizedBox(height: 12),
-          InfoPanel(
-            child: Text(
-              'Hello Reception,\n'
-              'I have completed a bank transfer.\n'
-              'Order: $orderNumber\n'
-              'Device ID Number: $deviceIdNumber\n'
-              'Amount: ${formatPrice(total)}\n'
-              'Please confirm receipt of payment.',
-              style: TextStyle(color: AppColors.text, fontSize: 14),
+          Expanded(
+            child: InfoPanel(
+              child: SingleChildScrollView(
+                child: Text(
+                  'Hello Reception,\n\n'
+                  'I have completed a bank transfer.\n'
+                  'Order: $orderNumber\n'
+                  'Device ID Number: $deviceIdNumber\n'
+                  'Amount: ${formatPrice(total)}\n\n'
+                  'Please confirm receipt of payment.',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           const Text(
-            'This message is simulated and was not delivered. Connect a reception WhatsApp number and messaging service to enable sending.',
+            'Generated message preview. This is not sent automatically.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted, fontSize: 12),
           ),
-          const Spacer(),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: GoldButton(
+              label: 'Confirm Order',
+              onPressed: onConfirmOrder,
+              icon: Icons.check,
+            ),
+          ),
         ],
       ),
     );
