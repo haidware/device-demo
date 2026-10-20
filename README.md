@@ -76,12 +76,16 @@ origin if the Railway domain changes. Configure these Railway variables:
 - `DEBUG`: `0`.
 - `ALLOWED_HOSTS`: the Railway hostname (and any custom domain), comma-separated.
 - `CSRF_TRUSTED_ORIGINS`: the matching HTTPS origins.
-- `DATABASE_URL`: a managed PostgreSQL connection string for persistent data.
+- `DATABASE_URL`: the Supabase PostgreSQL URI from **Project Settings → Database
+  → Connection string** (choose URI format). Do not use the project `https://…
+  .supabase.co` API URL here. For Railway, use the Supabase connection option
+  reachable from your network and require SSL (`sslmode=require`).
 - `GUEST_ORDER_BASE_URL`: optional; otherwise QR codes use the public request URL.
 
 The container runs migrations before starting and serves `/health` for Railway's
-health check. After attaching PostgreSQL and deploying, create the first admin
-user from the Railway service shell with `python manage.py createsuperuser`.
+health check. After configuring Supabase PostgreSQL and deploying, create the
+first admin user from the Railway service shell with
+`python manage.py createsuperuser`.
 Railway terminates HTTPS before requests reach the container, so
 `SECURE_SSL_REDIRECT` defaults to `0`; the platform serves the public app over
 HTTPS. Do not commit `.env` files or local SQLite databases. For cross-origin
