@@ -34,12 +34,17 @@ The Flutter web release includes the Haidware app manifest and install icons.
 Deploy over HTTPS, then use the browser's install option (or Add to Home Screen
 on mobile) to install Haidware.
 
-## Payment confirmation demo
+## Payment confirmation
 
 Checkout uses bank transfer and generates a reception payment-message preview
-after staff select **I have paid**. Staff can review the message and select
-**Confirm Order**. The preview is shown in the app only; no WhatsApp message is
-sent.
+after guests enter the name on the bank sender account and select **I have
+paid**. Selecting **Confirm Order** records the order and department-specific
+payment notifications for both QR and device orders. The admin dashboard
+updates its activity feed every eight seconds and shows the sender name, room,
+department, and items. An authorized portal operator can open a prefilled
+WhatsApp link to the currently assigned kitchen/bar staff number and tap
+**Send**. WhatsApp is not sent automatically; real automated delivery needs an
+official WhatsApp provider and its credentials/templates.
 
 ## Admin portal and QR ordering
 

@@ -162,6 +162,21 @@ textarea { min-height: 100px; resize: vertical; }
 .activity-item:last-child, .rule-item:last-child { border-bottom: 0; }
 .activity-item span, .activity-item small, .rule-item span { color: var(--muted); }
 .activity-item small { font-size: 11px; }
+.dashboard-chat { margin-top: 20px; }
+.dashboard-chat .panel-heading { align-items: flex-start; }
+.dashboard-chat .panel-heading h2 { margin: 0 0 5px; }
+.dashboard-chat .panel-heading p { margin-bottom: 0; }
+.live-indicator { display: inline-flex; align-items: center; gap: 7px; color: var(--green); font-size: 12px; white-space: nowrap; }
+.live-indicator span { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px #dcfce7; }
+.dashboard-chat-feed { display: grid; gap: 10px; }
+.dashboard-chat-message { padding: 13px 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-soft); }
+.dashboard-chat-heading, .dashboard-chat-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dashboard-chat-heading time, .dashboard-chat-message p { color: var(--muted); font-size: 12px; }
+.dashboard-chat-message p { margin: 8px 0 0; line-height: 1.45; }
+.dashboard-chat-footer { justify-content: flex-start; margin-top: 12px; font-size: 11px; }
+.whatsapp-send { min-height: 32px; background: #dcfce7; color: #166534; }
+.whatsapp-send:hover { background: #bbf7d0; color: #14532d; }
+.activity-refresh-status { display: block; margin-top: 8px; color: var(--muted); }
 .messages { margin-top: 16px; }
 .message { padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); font-size: 13px; }
 .message.success { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }

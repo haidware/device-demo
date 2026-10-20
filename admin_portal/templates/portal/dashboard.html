@@ -14,8 +14,8 @@
   <section class="panel dashboard-panel">
     <div class="panel-heading"><h2>Active Orders</h2><a href="{% url 'orders' %}">View all</a></div>
     {% if active_orders %}
-    <div class="table-wrap"><table><thead><tr><th>Order</th><th>Room / Device</th><th>Items</th><th>Order status</th><th>Payment</th></tr></thead><tbody>
-    {% for order in active_orders %}<tr><td><a href="{% url 'order_detail' order.pk %}">{{ order.order_number }}</a></td><td>{{ order.room_identifier|default:"—" }} · {{ order.device.device_id }}</td><td>{{ order.lines.count }}</td><td><span class="badge">{{ order.get_status_display }}</span></td><td><span class="badge {% if order.payment_status == 'review' %}warning{% endif %}">{{ order.get_payment_status_display }}</span></td></tr>{% endfor %}
+    <div class="table-wrap"><table><thead><tr><th>Order</th><th>Room / Device</th><th>Sender name</th><th>Items</th><th>Order status</th><th>Payment</th></tr></thead><tbody>
+    {% for order in active_orders %}<tr><td><a href="{% url 'order_detail' order.pk %}">{{ order.order_number }}</a></td><td>{{ order.room_identifier|default:"—" }} · {{ order.device.device_id }}</td><td>{{ order.sender_name|default:"—" }}</td><td>{{ order.lines.count }}</td><td><span class="badge">{{ order.get_status_display }}</span></td><td><span class="badge {% if order.payment_status == 'review' %}warning{% endif %}">{{ order.get_payment_status_display }}</span></td></tr>{% endfor %}
     </tbody></table></div>
     {% else %}<div class="empty-state">No active orders</div>{% endif %}
   </section>
@@ -28,5 +28,33 @@
     {% else %}<div class="empty-state">No active requests</div>{% endif %}
   </section>
 </div>
+<section class="panel dashboard-chat">
+  <div class="panel-heading">
+    <div><p class="eyebrow">LIVE ORDER ACTIVITY</p><h2>Payment confirmation messages</h2><p class="muted">New QR and device orders appear automatically. Open the department message in WhatsApp and tap Send to notify the assigned staff member.</p></div>
+    <span class="live-indicator"><span></span>Live · refreshes every 8 seconds</span>
+  </div>
+  <div id="dashboard-activity" data-activity-url="{% url 'dashboard_activity' %}">
+    {% include "portal/partials/dashboard_activity.html" %}
+  </div>
+</section>
+<script>
+  (() => {
+    const activity = document.getElementById("dashboard-activity");
+    const refresh = async () => {
+      try {
+        const response = await fetch(activity.dataset.activityUrl, {
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        if (!response.ok) throw new Error(`Activity refresh failed (${response.status}).`);
+        activity.innerHTML = await response.text();
+      } catch {
+        const status = document.getElementById("activity-refresh-status");
+        if (status) status.textContent = "Live refresh paused; reload the page to retry.";
+      }
+    };
+    window.setInterval(refresh, 8000);
+  })();
+</script>
 {% endif %}
 {% endblock %}

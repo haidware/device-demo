@@ -1,0 +1,22 @@
+{% if whatsapp_activity %}
+<div class="dashboard-chat-feed" aria-live="polite">
+  {% for attempt in whatsapp_activity %}
+  <article class="dashboard-chat-message">
+    <div class="dashboard-chat-heading">
+      <strong>{{ attempt.order.order_number }} · {{ attempt.get_department_display }}</strong>
+      <time datetime="{{ attempt.created_at|date:'c' }}">{{ attempt.created_at|timesince }} ago</time>
+    </div>
+    <p><strong>Sender:</strong> {{ attempt.sender_name|default:"Not provided" }} · <strong>Room/Table:</strong> {{ attempt.order.room_identifier|default:"—" }}</p>
+    <p><strong>Items:</strong> {% for line in attempt.department_lines %}{{ line.item_name }} × {{ line.quantity }}{% if not forloop.last %}, {% endif %}{% empty %}No items recorded{% endfor %}</p>
+    <div class="dashboard-chat-footer">
+      <span class="{% if attempt.status == 'failed' %}status-failed{% elif attempt.status == 'demo' %}status-demo{% else %}muted{% endif %}">{{ attempt.get_status_display }}</span>
+      {% if attempt.staff %}<span>Assigned: {{ attempt.staff.user.get_full_name|default:attempt.staff.user.username }}</span>{% endif %}
+      {% if attempt.whatsapp_url %}<a class="button whatsapp-send" href="{{ attempt.whatsapp_url }}" target="_blank" rel="noopener noreferrer">Open WhatsApp to send</a>{% elif attempt.status == "failed" %}<span class="status-failed">{{ attempt.detail }}</span>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">Orders with payment details will appear here when guests confirm an order.</div>
+{% endif %}
+<small id="activity-refresh-status" class="activity-refresh-status" role="status"></small>

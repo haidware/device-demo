@@ -19,6 +19,7 @@ from .models import (
     StaffProfile,
     WhatsAppAttempt,
 )
+from .whatsapp_links import order_notification_text, whatsapp_link, whatsapp_number
 
 User = get_user_model()
 
@@ -419,6 +420,121 @@ class PortalFlowTests(TestCase):
         self.assertEqual(order.sender_name, "Jane Customer")
         self.assertEqual(order.lines.get().quantity, 2)
 
+    def test_order_notification_message_contains_sender_and_department_items(self):
+        bar_item = MenuItem.objects.create(
+            name="Mango Mocktail",
+            department="bar",
+            category="Drinks",
+            price=Decimal("3000.00"),
+        )
+        order = Order.objects.create(
+            device=self.device,
+            sender_name="Jane Customer",
+            service_charge=Decimal("800.00"),
+        )
+        OrderLine.objects.create(
+            order=order,
+            menu_item=self.item,
+            item_name=self.item.name,
+            unit_price=self.item.price,
+            quantity=1,
+        )
+        OrderLine.objects.create(
+            order=order,
+            menu_item=bar_item,
+            item_name=bar_item.name,
+            unit_price=bar_item.price,
+            quantity=1,
+        )
+
+        kitchen_message = order_notification_text(order, "kitchen")
+        bar_message = order_notification_text(order, "bar")
+
+        self.assertIn("Sender name: Jane Customer", kitchen_message)
+        self.assertIn("Jollof Rice x1", kitchen_message)
+        self.assertNotIn("Mango Mocktail", kitchen_message)
+        self.assertIn("Mango Mocktail x1", bar_message)
+        self.assertNotIn("Jollof Rice", bar_message)
+
+    def test_whatsapp_links_normalize_local_mobile_numbers(self):
+        self.assertEqual(whatsapp_number("+234 801 234 5678"), "2348012345678")
+        self.assertEqual(whatsapp_number("08012345678"), "2348012345678")
+        self.assertEqual(whatsapp_number("8012345678"), "2348012345678")
+        self.assertEqual(whatsapp_link("invalid", "message"), "")
+        self.assertIn(
+            "https://wa.me/2348012345678?text=",
+            whatsapp_link("08012345678", "Sender name: Jane Customer"),
+        )
+
+    def test_dashboard_activity_shows_department_whatsapp_send_links(self):
+        bar_item = MenuItem.objects.create(
+            name="Mango Mocktail",
+            department="bar",
+            category="Drinks",
+            price=Decimal("3000.00"),
+        )
+        kitchen_staff_user = User.objects.create_user(
+            username="kitchen.staff",
+            first_name="Kemi",
+            password="Strong-Staff-Passphrase-2891",
+        )
+        bar_staff_user = User.objects.create_user(
+            username="bar.staff",
+            first_name="Tunde",
+            password="Strong-Staff-Passphrase-2891",
+        )
+        kitchen_staff = StaffProfile.objects.create(
+            user=kitchen_staff_user,
+            role="handler",
+            phone_number="+234 801 111 2222",
+        )
+        bar_staff = StaffProfile.objects.create(
+            user=bar_staff_user,
+            role="handler",
+            phone_number="+234 802 333 4444",
+        )
+        ShiftAssignment.objects.create(
+            shift="morning", department="kitchen", staff=kitchen_staff
+        )
+        ShiftAssignment.objects.create(
+            shift="morning", department="bar", staff=bar_staff
+        )
+        order_response = self.client.post(
+            reverse("api_create_order"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "sender_name": "Jane Customer",
+                    "expected_total": 8800,
+                    "items": [
+                        {"item_id": self.item.pk, "quantity": 1},
+                        {"item_id": bar_item.pk, "quantity": 1},
+                    ],
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(order_response.status_code, 201)
+        self.assertNotIn("2348011112222", order_response.content.decode())
+        self.assertNotIn("2348023334444", order_response.content.decode())
+        self.client.force_login(self.admin)
+
+        dashboard = self.client.get(reverse("dashboard"))
+        activity = self.client.get(reverse("dashboard_activity"))
+
+        self.assertContains(dashboard, "Payment confirmation messages")
+        self.assertContains(dashboard, "Live · refreshes every 8 seconds")
+        self.assertContains(dashboard, "Jane Customer")
+        self.assertContains(activity, "https://wa.me/2348011112222")
+        self.assertContains(activity, "https://wa.me/2348023334444")
+        self.assertContains(activity, "Jollof Rice")
+        self.assertContains(activity, "Mango Mocktail")
+        self.assertContains(activity, "Open WhatsApp to send")
+
+    def test_dashboard_activity_requires_an_operations_login(self):
+        response = self.client.get(reverse("dashboard_activity"))
+        self.assertEqual(response.status_code, 302)
+
     def test_client_cannot_override_menu_price(self):
         response = self.client.post(
             reverse("api_create_order"),
@@ -573,7 +689,7 @@ class PortalFlowTests(TestCase):
         self.assertEqual(attempt.status, "demo")
         self.assertEqual(attempt.staff, staff)
         self.assertEqual(attempt.recipient_number, staff.phone_number)
-        self.assertIn("no WhatsApp message was sent", attempt.detail)
+        self.assertIn("no whatsapp message was sent", attempt.detail.lower())
 
     def test_unassigned_department_logs_failed_notification(self):
         response = self.client.post(

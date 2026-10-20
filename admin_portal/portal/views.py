@@ -42,6 +42,7 @@ from .models import (
 )
 from .menu_images import MenuImageStorageError, store_menu_image
 from .qr_codes import guest_order_qr_url
+from .whatsapp_links import order_notification_text, whatsapp_link
 
 User = get_user_model()
 
@@ -79,6 +80,33 @@ def _base(request):
         "can_manage_staff": _can_manage_staff(request.user),
         "can_manage_settings": _manager_only(request.user),
     }
+
+
+def _dashboard_whatsapp_activity():
+    attempts = (
+        WhatsAppAttempt.objects.filter(order__isnull=False)
+        .select_related("order", "order__device", "staff__user")
+        .prefetch_related("order__lines__menu_item")[:15]
+    )
+    activity = []
+    for attempt in attempts:
+        order = attempt.order
+        attempt.department_lines = [
+            line
+            for line in order.lines.all()
+            if line.menu_item_id and line.menu_item.department == attempt.department
+        ]
+        attempt.sender_name = order.sender_name
+        attempt.whatsapp_url = (
+            whatsapp_link(
+                attempt.recipient_number,
+                order_notification_text(order, attempt.department),
+            )
+            if attempt.status == "demo"
+            else ""
+        )
+        activity.append(attempt)
+    return activity
 
 
 def manager_signup(request):
@@ -144,9 +172,20 @@ def dashboard(request):
         "active_requests": ServiceRequest.objects.exclude(
             status__in=["completed", "cancelled"]
         ).select_related("device", "service")[:8],
+        "whatsapp_activity": _dashboard_whatsapp_activity(),
         **_base(request),
     }
     return render(request, "portal/dashboard.html", context)
+
+
+@login_required
+@user_passes_test(_can_manage_operations, login_url="dashboard")
+def dashboard_activity(request):
+    return render(
+        request,
+        "portal/partials/dashboard_activity.html",
+        {"whatsapp_activity": _dashboard_whatsapp_activity()},
+    )
 
 
 @login_required

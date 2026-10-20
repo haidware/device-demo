@@ -2,6 +2,6 @@
 {% block title %}Settings – HAIDWARE{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">MANAGEMENT</p><h1>Property Settings</h1></div></div>
-<p class="muted">WhatsApp is currently demo-only. Saving staff numbers and routing does not send real messages.</p>
+<p class="muted">When an order is confirmed, the dashboard prepares a WhatsApp message for the assigned department staff member. An authorized operator must open the link and tap Send; messages are not sent automatically.</p>
 <section class="panel form-panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Save Settings</button></form></section>
 {% endblock %}

@@ -46,7 +46,10 @@ def _record_routing_attempts(*, order=None, service_request=None):
             detail = f"No active staff contact assigned for {department_labels[department]}."
         else:
             status = "demo"
-            detail = "Demo only: no WhatsApp message was sent."
+            detail = (
+                "No WhatsApp message was sent automatically. An authorized "
+                "operator can open the dashboard link and tap Send."
+            )
 
         WhatsAppAttempt.objects.create(
             order=order,
