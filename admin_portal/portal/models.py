@@ -93,6 +93,8 @@ class MenuItem(models.Model):
     class Meta:
         ordering = ["department", "category", "name"]
 
+    image_url = models.URLField(blank=True)
+
     def __str__(self):
         return self.name
 
@@ -123,6 +125,7 @@ class ServiceOption(models.Model):
 
 class StaffProfile(models.Model):
     ROLES = [
+        ("manager", "Manager / Director"),
         ("admin", "Administrator"),
         ("reception", "Reception / Staff"),
         ("handler", "Order Handler"),

@@ -20,6 +20,7 @@ urlpatterns = [
         auth_views.LoginView.as_view(template_name="login.html"),
         name="login",
     ),
+    path("admin/manager-signup/", views.manager_signup, name="manager_signup"),
     path("admin/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("django-admin/", admin.site.urls),
     path("api/v1/", include("portal.api_urls")),

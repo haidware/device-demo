@@ -1,7 +1,9 @@
 import json
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -12,6 +14,7 @@ from .models import (
     OrderLine,
     PortalSettings,
     Room,
+    ServiceOption,
     ShiftAssignment,
     StaffProfile,
     WhatsAppAttempt,
@@ -44,6 +47,194 @@ class PortalFlowTests(TestCase):
         response = self.client.get("/admin/")
 
         self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
+
+    def test_manager_signup_creates_manager_role_and_session(self):
+        response = self.client.post(
+            reverse("manager_signup"),
+            {
+                "username": "property.manager",
+                "first_name": "Property",
+                "last_name": "Manager",
+                "email": "manager@example.test",
+                "password1": "Unique-Manager-Passphrase-2841",
+                "password2": "Unique-Manager-Passphrase-2841",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        manager = User.objects.get(username="property.manager")
+        self.assertEqual(manager.staff_profile.role, "manager")
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_manager_can_create_admin_account_and_set_bank_details(self):
+        manager = User.objects.create_user(
+            username="manager",
+            password="Strong-Manager-Passphrase-2841",
+        )
+        StaffProfile.objects.create(user=manager, role="manager")
+        self.client.force_login(manager)
+
+        staff_response = self.client.post(
+            reverse("staff_add"),
+            {
+                "username": "testing.admin",
+                "password": "Strong-Admin-Passphrase-9281",
+                "role": "admin",
+                "departments": "Kitchen, Bar",
+                "phone_number": "+234 801 234 5678",
+            },
+        )
+        self.assertRedirects(staff_response, reverse("staff"))
+        self.assertEqual(
+            User.objects.get(username="testing.admin").staff_profile.role,
+            "admin",
+        )
+
+        settings_response = self.client.post(
+            reverse("settings"),
+            {
+                "property_name": "Demo Hotel",
+                "currency": "NGN",
+                "bank_name": "Demo Bank",
+                "account_name": "Demo Hotel Ltd",
+                "account_number": "0123456789",
+                "active_shift": "morning",
+                "whatsapp_enabled": "on",
+            },
+        )
+        self.assertRedirects(settings_response, reverse("settings"))
+        self.assertEqual(PortalSettings.objects.get().account_number, "0123456789")
+
+    def test_admin_can_edit_service_description_and_department(self):
+        service = ServiceOption.objects.create(
+            name="Fresh Towels",
+            department="housekeeping",
+            description="Delivered to your room.",
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("service_edit", args=[service.pk]),
+            {
+                "name": "Extra Towels",
+                "department": "housekeeping",
+                "description": "Fresh towels delivered to your room.",
+                "active": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("services"))
+        service.refresh_from_db()
+        self.assertEqual(service.name, "Extra Towels")
+        self.assertEqual(service.description, "Fresh towels delivered to your room.")
+
+    def test_admin_cannot_create_admin_or_edit_payout_details(self):
+        site_admin = User.objects.create_user(
+            username="site.admin",
+            password="Strong-Admin-Passphrase-9281",
+        )
+        StaffProfile.objects.create(user=site_admin, role="admin")
+        self.client.force_login(site_admin)
+        create_response = self.client.post(
+            reverse("staff_add"),
+            {
+                "username": "unauthorized.admin",
+                "password": "Strong-Admin-Passphrase-9281",
+                "role": "admin",
+                "phone_number": "+234 801 234 5678",
+            },
+        )
+        self.assertEqual(create_response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="unauthorized.admin").exists())
+        settings_response = self.client.get(reverse("settings"))
+        self.assertEqual(settings_response.status_code, 302)
+        self.assertFalse(PortalSettings.objects.exists())
+
+    def test_manager_can_upload_photo_to_menu_item_edit(self):
+        manager = User.objects.create_user(
+            username="photo.manager",
+            password="Strong-Manager-Passphrase-2841",
+        )
+        StaffProfile.objects.create(user=manager, role="manager")
+        self.client.force_login(manager)
+        photo = SimpleUploadedFile(
+            "updated.png",
+            b"\x89PNG\r\n\x1a\nphoto-bytes",
+            content_type="image/png",
+        )
+
+        with patch(
+            "portal.views.store_menu_image",
+            return_value="https://storage.test/menu/updated.png",
+        ) as store_image:
+            response = self.client.post(
+                reverse("menu_edit", args=[self.item.pk]),
+                {
+                    "name": self.item.name,
+                    "department": self.item.department,
+                    "category": self.item.category,
+                    "description": self.item.description,
+                    "price": str(self.item.price),
+                    "preparation_minutes": self.item.preparation_minutes,
+                    "available": "on",
+                    "image_file": photo,
+                },
+            )
+
+        self.assertRedirects(response, reverse("menu_list", args=["kitchen"]))
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.image_url, "https://storage.test/menu/updated.png")
+        store_image.assert_called_once()
+
+    def test_reception_cannot_change_menu_services_or_device_configuration(self):
+        reception = User.objects.create_user(username="reception", password="x")
+        StaffProfile.objects.create(user=reception, role="reception")
+        self.client.force_login(reception)
+        for name, args in [
+            ("menu_list", ["kitchen"]),
+            ("menu_add", []),
+            ("services", []),
+            ("rooms", []),
+            ("devices", []),
+        ]:
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name, args=args))
+                self.assertEqual(response.status_code, 302)
+
+    @patch("portal.views.store_menu_image", return_value="https://storage.test/menu/photo.png")
+    def test_admin_menu_photo_upload_is_saved_and_returned_to_guest_menu(
+        self, store_image
+    ):
+        self.client.force_login(self.admin)
+        photo = SimpleUploadedFile(
+            "jollof.png",
+            b"\x89PNG\r\n\x1a\nphoto-bytes",
+            content_type="image/png",
+        )
+        response = self.client.post(
+            reverse("menu_add"),
+            {
+                "name": "Jollof Photo",
+                "department": "kitchen",
+                "category": "Main",
+                "description": "Freshly prepared.",
+                "price": "2500",
+                "preparation_minutes": "20",
+                "available": "on",
+                "image_file": photo,
+            },
+        )
+        self.assertRedirects(response, reverse("menu_list", args=["kitchen"]))
+        item = MenuItem.objects.get(name="Jollof Photo")
+        self.assertEqual(item.image_url, "https://storage.test/menu/photo.png")
+        store_image.assert_called_once()
+        payload = self.client.get(
+            reverse("api_device_menu"), HTTP_X_DEVICE_ID=self.device.device_id
+        ).json()["items"]
+        self.assertEqual(
+            next(entry for entry in payload if entry["id"] == item.pk)["image_url"],
+            item.image_url,
+        )
 
     def test_login_required_for_portal_and_staff_management(self):
         response = self.client.get(reverse("dashboard"))

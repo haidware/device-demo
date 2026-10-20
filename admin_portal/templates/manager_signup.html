@@ -1,0 +1,27 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manager Sign Up – HAIDWARE</title>
+  <link rel="stylesheet" href="{% static 'portal/portal.css' %}?v=2">
+</head>
+<body class="login-page">
+  <form class="login-card" method="post">
+    {% csrf_token %}
+    <span class="brand-mark">H</span>
+    <h1>Manager Sign Up</h1>
+    <p>Create a Manager / Director account for the hospitality portal.</p>
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+    {% endfor %}
+    <button class="button primary full" type="submit">Create Manager Account</button>
+    <a class="login-signup-link" href="{% url 'login' %}">Back to sign in</a>
+    <small>HAIDWARE Hospitality © {% now "Y" %}</small>
+  </form>
+</body>
+</html>

@@ -103,6 +103,11 @@ CORS_ALLOWED_ORIGINS = {
     if origin.strip()
 }
 GUEST_ORDER_BASE_URL = os.environ.get("GUEST_ORDER_BASE_URL", "").strip()
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_STORAGE_BUCKET = os.environ.get(
+    "SUPABASE_STORAGE_BUCKET", "menu-images"
+).strip()
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG

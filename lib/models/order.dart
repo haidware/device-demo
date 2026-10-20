@@ -7,6 +7,7 @@ class MenuItem {
     required this.price,
     this.department = 'kitchen',
     this.preparationMinutes = 25,
+    this.imageUrl = '',
   });
 
   final String id;
@@ -16,6 +17,7 @@ class MenuItem {
   final int price;
   final String department;
   final int preparationMinutes;
+  final String imageUrl;
 
   String get preparationTimeLabel => '$preparationMinutes min';
 }

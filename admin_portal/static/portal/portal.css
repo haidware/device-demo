@@ -93,6 +93,9 @@ th { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .09
 tbody tr:last-child td { border-bottom: 0; }
 td a { font-weight: 650; }
 .empty-cell { padding: 35px 12px; color: var(--muted); text-align: center; }
+.menu-thumbnail, .menu-thumbnail-placeholder { width: 52px; height: 52px; display: inline-grid; place-items: center; border-radius: 8px; background: var(--panel-soft); object-fit: cover; color: var(--muted); font-size: 10px; }
+.login-signup-link { display: block; margin: 16px 0; text-align: center; font-size: 13px; }
+.field-error { display: block; color: var(--red); }
 .empty-state { padding: 38px 14px; color: var(--muted); text-align: center; }
 .badge { display: inline-block; padding: 5px 8px; border: 1px solid #e8d7b5; border-radius: 20px; background: #fff8e8; color: #8a5a0a; font-size: 11px; white-space: nowrap; }
 .badge.warning { border-color: #f2d28b; background: #fff6dc; color: #825b13; }

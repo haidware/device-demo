@@ -6,7 +6,7 @@ import qrcode
 from qrcode.image.svg import SvgPathImage
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum
@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     DeviceForm,
+    ManagerSignupForm,
     MenuItemForm,
     PortalSettingsForm,
     RoomForm,
@@ -39,6 +40,7 @@ from .models import (
     ROUTING_DEPARTMENTS,
     WhatsAppAttempt,
 )
+from .menu_images import MenuImageStorageError, store_menu_image
 from .qr_codes import guest_order_qr_url
 
 User = get_user_model()
@@ -50,9 +52,23 @@ def _admin_only(user):
     ).exists()
 
 
+def _manager_only(user):
+    return user.is_superuser or StaffProfile.objects.filter(
+        user=user, role="manager", active=True
+    ).exists()
+
+
+def _can_manage_staff(user):
+    return _admin_only(user) or _manager_only(user)
+
+
+def _can_manage_configuration(user):
+    return _can_manage_staff(user)
+
+
 def _can_manage_operations(user):
     return user.is_superuser or StaffProfile.objects.filter(
-        user=user, role__in=["admin", "reception"], active=True
+        user=user, role__in=["manager", "admin", "reception"], active=True
     ).exists()
 
 
@@ -60,8 +76,26 @@ def _base(request):
     return {
         "portal_settings": PortalSettings.objects.first(),
         "can_manage_operations": _can_manage_operations(request.user),
-        "can_manage_staff": _admin_only(request.user),
+        "can_manage_staff": _can_manage_staff(request.user),
+        "can_manage_settings": _manager_only(request.user),
     }
+
+
+def manager_signup(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    form = ManagerSignupForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            user = form.save()
+            StaffProfile.objects.create(user=user, role="manager")
+        login(request, user)
+        messages.success(
+            request,
+            "Manager account created. You can now set up staff and property details.",
+        )
+        return redirect("dashboard")
+    return render(request, "manager_signup.html", {"form": form})
 
 
 def _revenue_for_orders(orders):
@@ -256,7 +290,7 @@ def handler_view(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def menu_list(request, department):
     if department not in {"kitchen", "bar"}:
         return redirect("menu_list", department="kitchen")
@@ -269,14 +303,21 @@ def menu_list(request, department):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def menu_create(request):
     initial = {"department": request.GET.get("department", "kitchen")}
-    form = MenuItemForm(request.POST or None, initial=initial)
+    form = MenuItemForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST" and form.is_valid():
-        item = form.save()
-        messages.success(request, f"{item.name} added to the menu.")
-        return redirect("menu_list", department=item.department)
+        item = form.save(commit=False)
+        try:
+            if form.cleaned_data["image_file"]:
+                item.image_url = store_menu_image(form.cleaned_data["image_file"])
+        except MenuImageStorageError as error:
+            form.add_error("image_file", str(error))
+        else:
+            item.save()
+            messages.success(request, f"{item.name} added to the menu.")
+            return redirect("menu_list", department=item.department)
     return render(
         request,
         "portal/form.html",
@@ -285,14 +326,21 @@ def menu_create(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def menu_edit(request, item_id):
     item = get_object_or_404(MenuItem, pk=item_id)
-    form = MenuItemForm(request.POST or None, instance=item)
+    form = MenuItemForm(request.POST or None, request.FILES or None, instance=item)
     if request.method == "POST" and form.is_valid():
-        item = form.save()
-        messages.success(request, "Menu item updated.")
-        return redirect("menu_list", department=item.department)
+        item = form.save(commit=False)
+        try:
+            if form.cleaned_data["image_file"]:
+                item.image_url = store_menu_image(form.cleaned_data["image_file"])
+        except MenuImageStorageError as error:
+            form.add_error("image_file", str(error))
+        else:
+            item.save()
+            messages.success(request, "Menu item updated.")
+            return redirect("menu_list", department=item.department)
     return render(
         request,
         "portal/form.html",
@@ -307,7 +355,7 @@ def menu_edit(request, item_id):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def services_list(request):
     options = ServiceOption.objects.all()
     form = ServiceOptionForm(request.POST or None)
@@ -323,7 +371,23 @@ def services_list(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
+def service_edit(request, service_id):
+    service = get_object_or_404(ServiceOption, pk=service_id)
+    form = ServiceOptionForm(request.POST or None, instance=service)
+    if request.method == "POST" and form.is_valid():
+        service = form.save()
+        messages.success(request, f"{service.name} updated.")
+        return redirect("services")
+    return render(
+        request,
+        "portal/form.html",
+        {"form": form, "title": f"Edit {service.name}", "cancel_url": "services", **_base(request)},
+    )
+
+
+@login_required
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 @require_POST
 def service_toggle(request, service_id):
     service = get_object_or_404(ServiceOption, pk=service_id)
@@ -334,7 +398,7 @@ def service_toggle(request, service_id):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_list(request):
     return render(
         request,
@@ -344,7 +408,7 @@ def room_list(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_create(request):
     form = RoomForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -360,7 +424,7 @@ def room_create(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_edit(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
     form = RoomForm(request.POST or None, instance=room)
@@ -380,9 +444,9 @@ def room_edit(request, room_id):
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def room_qr(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
+    if not _can_manage_configuration(request.user):
+        return HttpResponse("Only administrators can manage QR codes.", status=403)
     if request.method == "POST":
-        if not _admin_only(request.user):
-            return HttpResponse("Only administrators can generate QR codes.", status=403)
         device = room.ensure_ordering_device()
         if device is None:
             messages.error(request, "Activate this room or table before generating its QR.")
@@ -408,7 +472,7 @@ def room_qr(request, room_id):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_qr_image(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
     device = room.active_qr_device
@@ -442,7 +506,7 @@ def guest_order(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def device_list(request):
     return render(
         request,
@@ -452,7 +516,7 @@ def device_list(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def device_create(request):
     form = DeviceForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -470,7 +534,7 @@ def device_create(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def device_edit(request, device_id):
     device = get_object_or_404(Device, pk=device_id)
     form = DeviceForm(request.POST or None, instance=device)
@@ -486,7 +550,7 @@ def device_edit(request, device_id):
 
 
 @login_required
-@user_passes_test(_admin_only, login_url="dashboard")
+@user_passes_test(_can_manage_staff, login_url="dashboard")
 def staff_list(request):
     staff = User.objects.filter(
         is_superuser=False, staff_profile__isnull=False
@@ -506,9 +570,20 @@ def staff_list(request):
 
 
 @login_required
-@user_passes_test(_admin_only, login_url="dashboard")
+@user_passes_test(_can_manage_staff, login_url="dashboard")
 def staff_create(request):
-    form = StaffCreateForm(request.POST or None)
+    allowed_roles = StaffProfile.ROLES
+    if _manager_only(request.user) and not request.user.is_superuser:
+        allowed_roles = [
+            choice for choice in StaffProfile.ROLES if choice[0] != "manager"
+        ]
+    elif not request.user.is_superuser:
+        allowed_roles = [
+            choice
+            for choice in StaffProfile.ROLES
+            if choice[0] not in {"manager", "admin"}
+        ]
+    form = StaffCreateForm(request.POST or None, allowed_roles=allowed_roles)
     if request.method == "POST" and form.is_valid():
         user = form.save()
         messages.success(request, f"Staff account {user.username} created.")
@@ -521,10 +596,21 @@ def staff_create(request):
 
 
 @login_required
-@user_passes_test(_admin_only, login_url="dashboard")
+@user_passes_test(_can_manage_staff, login_url="dashboard")
 @require_POST
 def staff_toggle(request, user_id):
     user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    target_profile = StaffProfile.objects.filter(user=user).first()
+    if (
+        target_profile
+        and target_profile.role in {"manager", "admin"}
+        and not _manager_only(request.user)
+        and not request.user.is_superuser
+    ):
+        return HttpResponse(
+            "Only a manager can change manager or administrator access.",
+            status=403,
+        )
     user.is_active = not user.is_active
     user.save(update_fields=["is_active"])
     profile, _ = StaffProfile.objects.get_or_create(user=user)
@@ -564,7 +650,7 @@ def reports(request):
 
 
 @login_required
-@user_passes_test(_admin_only, login_url="dashboard")
+@user_passes_test(_manager_only, login_url="dashboard")
 def settings_page(request):
     settings_record = PortalSettings.objects.first()
     form = PortalSettingsForm(request.POST or None, instance=settings_record)
@@ -580,7 +666,7 @@ def settings_page(request):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def staff_shifts(request):
     settings_record = PortalSettings.objects.first()
     selected_shift = (

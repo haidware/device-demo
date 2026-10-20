@@ -20,6 +20,7 @@
     {{ form.password }}
     <input type="hidden" name="next" value="{{ next }}">
     <button class="button primary full" type="submit">Sign In</button>
+    <a class="login-signup-link" href="{% url 'manager_signup' %}">Manager / Director sign up</a>
     <small>HAIDWARE Hospitality © {% now "Y" %}</small>
   </form>
 </body>

@@ -4,6 +4,18 @@ import '../models/order.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
+Widget _menuArtwork(MenuItem item, int variant) {
+  if (item.imageUrl.isEmpty) {
+    return FoodIllustration(variant: variant);
+  }
+  return Image.network(
+    item.imageUrl,
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stackTrace) =>
+        FoodIllustration(variant: variant),
+  );
+}
+
 class KitchenScreen extends StatelessWidget {
   const KitchenScreen({
     super.key,
@@ -141,7 +153,7 @@ class _MenuItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FoodIllustration(variant: index)),
+            Expanded(child: _menuArtwork(item, index)),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: Column(
@@ -238,7 +250,7 @@ class DetailScreen extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 5,
-                  child: FoodIllustration(variant: menuItems.indexOf(item)),
+                  child: _menuArtwork(item, menuItems.indexOf(item)),
                 ),
                 const SizedBox(width: 28),
                 Expanded(

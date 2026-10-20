@@ -158,6 +158,7 @@ button { color: inherit; }
   border-radius: 10px;
   background: linear-gradient(135deg, #493119, #17140f);
 }
+.guest-food-image img { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; }
 
 .guest-food-art::before {
   width: min(45%, 120px);

@@ -162,10 +162,12 @@ class PortalApi {
     final name = value['name'];
     final price = value['price'];
     final preparationMinutes = value['preparation_minutes'];
+    final imageUrl = value['image_url'];
     if (id is! int ||
         name is! String ||
         price is! String ||
-        preparationMinutes is! int) {
+        preparationMinutes is! int ||
+        (imageUrl != null && imageUrl is! String)) {
       throw const PortalApiException(
         'The portal returned an invalid menu item.',
       );
@@ -191,6 +193,7 @@ class PortalApi {
       price: priceValue.round(),
       department: department,
       preparationMinutes: preparationMinutes,
+      imageUrl: imageUrl as String? ?? '',
     );
   }
 }

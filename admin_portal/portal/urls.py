@@ -19,6 +19,7 @@ urlpatterns = [
     path("menu/<str:department>/", views.menu_list, name="menu_list"),
     path("menu/<int:item_id>/edit/", views.menu_edit, name="menu_edit"),
     path("services/", views.services_list, name="services"),
+    path("services/<int:service_id>/edit/", views.service_edit, name="service_edit"),
     path("services/<int:service_id>/toggle/", views.service_toggle, name="service_toggle"),
     path("rooms/", views.room_list, name="rooms"),
     path("rooms/add/", views.room_create, name="room_add"),

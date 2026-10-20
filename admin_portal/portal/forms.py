@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 
@@ -53,6 +54,15 @@ class DeviceForm(forms.ModelForm):
 
 
 class MenuItemForm(forms.ModelForm):
+    image_file = forms.FileField(
+        label="Food or drink photo",
+        required=False,
+        widget=forms.ClearableFileInput(
+            attrs={"accept": "image/jpeg,image/png,image/webp", "capture": "environment"}
+        ),
+        help_text="Take a photo or choose an image (JPEG, PNG, or WebP; up to 5 MB).",
+    )
+
     class Meta:
         model = MenuItem
         fields = [
@@ -64,6 +74,13 @@ class MenuItemForm(forms.ModelForm):
             "preparation_minutes",
             "available",
         ]
+
+    def save(self, commit=True):
+        item = super().save(commit=False)
+        if commit:
+            item.save()
+            self.save_m2m()
+        return item
 
 
 class ServiceOptionForm(forms.ModelForm):
@@ -80,6 +97,11 @@ class StaffCreateForm(forms.Form):
     role = forms.ChoiceField(choices=StaffProfile.ROLES)
     departments = forms.CharField(max_length=160, required=False)
     phone_number = forms.CharField(max_length=24)
+
+    def __init__(self, *args, allowed_roles=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if allowed_roles is not None:
+            self.fields["role"].choices = allowed_roles
 
     def clean_password(self):
         password = self.cleaned_data["password"]
@@ -135,3 +157,13 @@ class PortalSettingsForm(forms.ModelForm):
             "active_shift",
             "whatsapp_enabled",
         ]
+
+
+class ManagerSignupForm(UserCreationForm):
+    email = forms.EmailField()
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150)
+
+    class Meta:
+        model = User
+        fields = ["username", "first_name", "last_name", "email"]

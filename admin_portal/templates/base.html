@@ -22,6 +22,7 @@
         <a href="{% url 'service_requests' %}"{% if request.resolver_match.url_name == "service_requests" %} aria-current="page"{% endif %}>Service Requests</a>
         <a href="{% url 'payments' %}"{% if request.resolver_match.url_name == "payments" %} aria-current="page"{% endif %}>Payments</a>
         <a href="{% url 'handler' %}"{% if request.resolver_match.url_name == "handler" %} aria-current="page"{% endif %}>Handler View</a>
+        {% if can_manage_configuration %}
         <span class="nav-label">Menu &amp; Services</span>
         <a href="{% url 'menu_list' 'kitchen' %}"{% if request.resolver_match.url_name == "menu_list" and request.resolver_match.kwargs.department == "kitchen" %} aria-current="page"{% endif %}>Kitchen Menu</a>
         <a href="{% url 'menu_list' 'bar' %}"{% if request.resolver_match.url_name == "menu_list" and request.resolver_match.kwargs.department == "bar" %} aria-current="page"{% endif %}>Bar Menu</a>
@@ -31,8 +32,9 @@
         <a href="{% url 'rooms' %}"{% if request.resolver_match.url_name == "rooms" or request.resolver_match.url_name == "room_add" or request.resolver_match.url_name == "room_edit" or request.resolver_match.url_name == "room_qr" %} aria-current="page"{% endif %}>Rooms &amp; Tables QR</a>
         <a href="{% url 'devices' %}"{% if request.resolver_match.url_name == "devices" or request.resolver_match.url_name == "device_add" or request.resolver_match.url_name == "device_edit" %} aria-current="page"{% endif %}>Devices</a>
         {% if can_manage_staff %}<a href="{% url 'staff' %}"{% if request.resolver_match.url_name == "staff" or request.resolver_match.url_name == "staff_add" %} aria-current="page"{% endif %}>Staff</a>{% endif %}
+        {% endif %}
         <a href="{% url 'reports' %}"{% if request.resolver_match.url_name == "reports" %} aria-current="page"{% endif %}>Reports</a>
-        {% if can_manage_staff %}<a href="{% url 'settings' %}"{% if request.resolver_match.url_name == "settings" %} aria-current="page"{% endif %}>Settings</a>{% endif %}
+        {% if can_manage_settings %}<a href="{% url 'settings' %}"{% if request.resolver_match.url_name == "settings" %} aria-current="page"{% endif %}>Settings</a>{% endif %}
         {% endif %}
       </nav>
       <div class="sidebar-user">

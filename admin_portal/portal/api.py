@@ -54,6 +54,7 @@ def _menu_item_payload(item):
         "department": item.department,
         "price": str(item.price),
         "preparation_minutes": item.preparation_minutes,
+        "image_url": item.image_url or None,
     }
 
 

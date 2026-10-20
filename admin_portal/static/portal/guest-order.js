@@ -36,7 +36,9 @@
   const subtotal = () => cartLines().reduce((sum, line) => sum + Number(line.item.price) * line.quantity, 0);
   const serviceCharge = () => Math.round(subtotal() * 0.1);
   const total = () => subtotal() + serviceCharge();
-  const art = (index = 0) => `<div class="guest-food-art variant-${index % 3}" data-art="${index % 2 ? "◉" : "≋"}" aria-hidden="true"></div>`;
+  const art = (index = 0, imageUrl = "", alt = "") => imageUrl
+    ? `<div class="guest-food-art guest-food-image"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}" loading="lazy"></div>`
+    : `<div class="guest-food-art variant-${index % 3}" data-art="${index % 2 ? "◉" : "≋"}" aria-hidden="true"></div>`;
   const badge = () => `<span class="guest-badge">${cartCount()}</span>`;
   const panelHeader = (title, trailing = "") => `
     <header class="guest-page-header">
@@ -107,7 +109,7 @@
         ${categories.map((category) => `<button class="guest-chip ${category === state.category ? "active" : ""}" data-action="category" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("")}
       </nav>
       ${visible.length ? `<div class="guest-items">${visible.map((item, index) => `<button class="guest-item" data-action="item" data-item-id="${escapeHtml(item.id)}">
-        ${art(index)}
+        ${art(index, item.image_url, item.name)}
         <span class="guest-item-copy"><strong class="guest-item-name">${escapeHtml(item.name)}</strong><span class="guest-item-description">${escapeHtml(item.description || "")}</span>
           <span class="guest-item-bottom"><strong class="guest-price">${money(item.price)}</strong><span class="guest-add" aria-hidden="true">+</span></span>
         </span>
@@ -120,7 +122,7 @@
     return `<section class="guest-screen">
       ${panelHeader("Item Detail")}
       <div class="guest-detail">
-        ${art(state.items.indexOf(item))}
+        ${art(state.items.indexOf(item), item.image_url, item.name)}
         <div class="guest-detail-copy">
           <h2>${escapeHtml(item.name)}</h2>
           <p>${escapeHtml(item.description || "")}</p>
@@ -142,7 +144,7 @@
     return `<section class="guest-screen">
       ${panelHeader("Your Cart")}
       ${lines.length ? `<div class="guest-cart-list">${lines.map((line, index) => `<div class="guest-cart-line">
-        ${art(index)}
+        ${art(index, line.item.image_url, line.item.name)}
         <span><strong>${escapeHtml(line.item.name)}</strong><small>${money(line.item.price)}</small></span>
         <span class="guest-stepper">
           <button data-action="cart-quantity" data-item-id="${escapeHtml(line.item.id)}" data-change="-1" aria-label="Decrease quantity">−</button>

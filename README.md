@@ -67,6 +67,28 @@ python manage.py check
 python manage.py test
 ```
 
+Managers/directors can create the first portal login at
+`/admin/manager-signup/`. Manager signup is open to the public as requested;
+anyone who reaches that page can register with manager-level access. A manager
+can create administrator and staff logins from **Staff**. Administrators can
+manage kitchen/bar menus, services, devices, rooms, QR codes, and staff, but
+only managers can edit bank payout details in **Settings**. These are portal
+roles; no Django superuser is needed for day-to-day portal access.
+
+Menu photos are uploaded from a phone camera or image picker to Supabase
+Storage. Create a **public** bucket named `menu-images` (or set
+`SUPABASE_STORAGE_BUCKET` to the bucket name) and configure these Railway
+variables:
+
+- `SUPABASE_URL`: the project URL, for example `https://<project-ref>.supabase.co`.
+- `SUPABASE_SERVICE_ROLE_KEY`: the private service-role key. Keep it only in
+  Railway/local environment variables; never expose or commit it.
+- `SUPABASE_STORAGE_BUCKET`: optional; defaults to `menu-images`.
+
+The bucket must allow public reads so guest menus and the Flutter device can
+display photos. Image writes are performed by Django using the private server
+key. Accepted image formats are JPEG, PNG, and WebP, up to 5 MB each.
+
 The Railway Docker build serves Flutter and Django from one origin. Its
 `API_BASE_URL` build argument defaults to
 `https://device-demo-production.up.railway.app`; set it to the public service
@@ -81,11 +103,12 @@ origin if the Railway domain changes. Configure these Railway variables:
   .supabase.co` API URL here. For Railway, use the Supabase connection option
   reachable from your network and require SSL (`sslmode=require`).
 - `GUEST_ORDER_BASE_URL`: optional; otherwise QR codes use the public request URL.
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET`:
+  configure Supabase Storage for persistent menu photos.
 
 The container runs migrations before starting and serves `/health` for Railway's
-health check. After configuring Supabase PostgreSQL and deploying, create the
-first admin user from the Railway service shell with
-`python manage.py createsuperuser`.
+health check. After deploying, use `/admin/manager-signup/` to create the first
+portal manager, then create an administrator account from **Staff**.
 Railway terminates HTTPS before requests reach the container, so
 `SECURE_SSL_REDIRECT` defaults to `0`; the platform serves the public app over
 HTTPS. Do not commit `.env` files or local SQLite databases. For cross-origin

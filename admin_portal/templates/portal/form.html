@@ -2,5 +2,5 @@
 {% block title %}{{ title }} – HAIDWARE{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">MANAGEMENT</p><h1>{{ title }}</h1></div></div>
-<section class="panel form-panel"><form method="post">{% csrf_token %}{{ form.as_p }}<div class="button-row"><button class="button primary" type="submit">Save</button>{% if cancel_url == "menu_list" %}<a class="button subtle" href="{% url cancel_url cancel_department|default:'kitchen' %}">Cancel</a>{% else %}<a class="button subtle" href="{% url cancel_url %}">Cancel</a>{% endif %}</div></form></section>
+<section class="panel form-panel"><form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<div class="button-row"><button class="button primary" type="submit">Save</button>{% if cancel_url == "menu_list" %}<a class="button subtle" href="{% url cancel_url cancel_department|default:'kitchen' %}">Cancel</a>{% else %}<a class="button subtle" href="{% url cancel_url %}">Cancel</a>{% endif %}</div></form></section>
 {% endblock %}
