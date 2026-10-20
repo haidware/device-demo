@@ -82,12 +82,18 @@ class StaffAccessScreen extends StatefulWidget {
     required this.deviceIdNumber,
     required this.onDeviceIdNumberChanged,
     required this.onContinue,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.isPortalConfigured,
     required this.onBack,
   });
 
   final String deviceIdNumber;
   final ValueChanged<String> onDeviceIdNumberChanged;
-  final VoidCallback onContinue;
+  final Future<void> Function() onContinue;
+  final bool isLoading;
+  final String? errorMessage;
+  final bool isPortalConfigured;
   final VoidCallback onBack;
 
   @override
@@ -123,6 +129,14 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
             'Enter the assigned device ID number to continue',
             style: TextStyle(color: AppColors.muted, fontSize: 15),
           ),
+          if (!widget.isPortalConfigured) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Demo mode — device IDs are not validated against the portal.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ],
           Expanded(
             child: Center(
               child: SizedBox(
@@ -159,6 +173,14 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          if (widget.errorMessage != null) ...[
+            Text(
+              widget.errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.red, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+          ],
           const Text(
             'Need access? Contact your manager',
             style: TextStyle(color: AppColors.muted, fontSize: 14),
@@ -167,12 +189,14 @@ class _StaffAccessScreenState extends State<StaffAccessScreen> {
           SizedBox(
             width: 250,
             child: GoldButton(
-              label: 'Sign In',
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  widget.onContinue();
-                }
-              },
+              label: widget.isLoading ? 'Connecting…' : 'Sign In',
+              onPressed: widget.isLoading
+                  ? null
+                  : () async {
+                      if (_formKey.currentState!.validate()) {
+                        await widget.onContinue();
+                      }
+                    },
               icon: Icons.arrow_forward,
             ),
           ),
@@ -186,18 +210,32 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.cartCount,
+    required this.roomLabel,
+    required this.showKitchen,
+    required this.showBar,
+    required this.isQrGuest,
+    required this.isConnecting,
+    required this.connectionError,
+    required this.onRetryConnection,
+    required this.onEnterDeviceId,
     required this.onOpenKitchen,
     required this.onOpenBar,
-    required this.onOpenServices,
     required this.onOpenRoom,
     required this.onOpenCart,
     required this.onOpenNotifications,
   });
 
   final int cartCount;
+  final String roomLabel;
+  final bool showKitchen;
+  final bool showBar;
+  final bool isQrGuest;
+  final bool isConnecting;
+  final String? connectionError;
+  final Future<void> Function() onRetryConnection;
+  final VoidCallback onEnterDeviceId;
   final VoidCallback onOpenKitchen;
   final VoidCallback onOpenBar;
-  final VoidCallback onOpenServices;
   final VoidCallback onOpenRoom;
   final VoidCallback onOpenCart;
   final VoidCallback onOpenNotifications;
@@ -206,131 +244,227 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ScreenSurface(
       padding: const EdgeInsets.fromLTRB(28, 12, 28, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Room details',
-                onPressed: onOpenRoom,
-                icon: const Icon(Icons.menu, size: 24),
-              ),
-              const Spacer(),
-              const Text(
-                'Room 101  ⌄',
-                style: TextStyle(color: AppColors.text, fontSize: 17),
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: onOpenNotifications,
-                icon: const Icon(Icons.notifications_none, size: 22),
-              ),
-              IconButton(
-                tooltip: 'Open cart',
-                onPressed: onOpenCart,
-                icon: Badge(
-                  label: Text('$cartCount'),
-                  backgroundColor: AppColors.gold,
-                  textColor: AppColors.background,
-                  child: const Icon(Icons.shopping_cart_outlined, size: 22),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Good afternoon 👋',
-            style: TextStyle(
-              color: AppColors.text,
-              fontSize: 29,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'What would you like to order?',
-            style: TextStyle(color: AppColors.muted, fontSize: 17),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: Row(
+          IgnorePointer(
+            ignoring: isConnecting || connectionError != null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _CategoryCard(
-                    title: 'Kitchen',
-                    subtitle: 'Delicious meals',
-                    icon: Icons.restaurant,
-                    onTap: onOpenKitchen,
-                    variant: 0,
+                Row(
+                  children: [
+                    if (!isQrGuest)
+                      IconButton(
+                        tooltip: 'Room details',
+                        onPressed: onOpenRoom,
+                        icon: const Icon(Icons.menu, size: 24),
+                      ),
+                    const Spacer(),
+                    Text(
+                      '$roomLabel  ⌄',
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Notifications',
+                      onPressed: onOpenNotifications,
+                      icon: const Icon(Icons.notifications_none, size: 22),
+                    ),
+                    IconButton(
+                      tooltip: 'Open cart',
+                      onPressed: onOpenCart,
+                      icon: Badge(
+                        label: Text('$cartCount'),
+                        backgroundColor: AppColors.gold,
+                        textColor: AppColors.background,
+                        child: const Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  'Good afternoon 👋',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 29,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _CategoryCard(
-                    title: 'Bar',
-                    subtitle: 'Drinks & more',
-                    icon: Icons.local_bar,
-                    onTap: onOpenBar,
-                    variant: 1,
-                  ),
+                const SizedBox(height: 4),
+                const Text(
+                  'What would you like to order?',
+                  style: TextStyle(color: AppColors.muted, fontSize: 17),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _CategoryCard(
-                    title: 'Services',
-                    subtitle: 'Hotel services',
-                    icon: Icons.room_service,
-                    onTap: onOpenServices,
-                    variant: 2,
+                const SizedBox(height: 18),
+                if (showKitchen || showBar)
+                  Expanded(
+                    child: Row(
+                      children: [
+                        if (showKitchen)
+                          Expanded(
+                            child: _CategoryCard(
+                              title: 'Kitchen',
+                              subtitle: 'Delicious meals',
+                              icon: Icons.restaurant,
+                              onTap: onOpenKitchen,
+                              variant: 0,
+                            ),
+                          ),
+                        if (showKitchen && showBar) const SizedBox(width: 14),
+                        if (showBar)
+                          Expanded(
+                            child: _CategoryCard(
+                              title: 'Bar',
+                              subtitle: 'Drinks & more',
+                              icon: Icons.local_bar,
+                              onTap: onOpenBar,
+                              variant: 1,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                else
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        'No food or drink menus are available right now.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.muted, fontSize: 16),
+                      ),
+                    ),
                   ),
-                ),
+                if (showKitchen)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: InkWell(
+                      onTap: onOpenKitchen,
+                      borderRadius: BorderRadius.circular(10),
+                      child: const InfoPanel(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 13,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.sell_outlined,
+                              color: AppColors.gold,
+                              size: 27,
+                            ),
+                            SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Special Offer',
+                                    style: TextStyle(
+                                      color: AppColors.goldLight,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '10% off selected items',
+                                    style: TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              'View all',
+                              style: TextStyle(
+                                color: AppColors.text,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: AppColors.gold,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: onOpenKitchen,
-            borderRadius: BorderRadius.circular(10),
-            child: const InfoPanel(
-              padding: EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-              child: Row(
-                children: [
-                  Icon(Icons.sell_outlined, color: AppColors.gold, size: 27),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Special Offer',
-                          style: TextStyle(
-                            color: AppColors.goldLight,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+          if (isConnecting || connectionError != null)
+            Positioned.fill(
+              child: ColoredBox(
+                color: AppColors.background.withValues(alpha: 0.88),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: InfoPanel(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isConnecting)
+                            const CircularProgressIndicator(
+                              color: AppColors.gold,
+                            )
+                          else
+                            const Icon(
+                              Icons.wifi_off_outlined,
+                              color: AppColors.red,
+                              size: 32,
+                            ),
+                          const SizedBox(height: 14),
+                          Text(
+                            isConnecting
+                                ? 'Opening $roomLabel…'
+                                : 'Unable to open this location',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '10% off selected items',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                          if (connectionError != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              connectionError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            GoldButton(
+                              label: 'Try Again',
+                              onPressed: onRetryConnection,
+                              icon: Icons.refresh,
+                            ),
+                            TextButton(
+                              onPressed: onEnterDeviceId,
+                              child: const Text('Enter device ID manually'),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                  Text(
-                    'View all',
-                    style: TextStyle(color: AppColors.text, fontSize: 14),
-                  ),
-                  SizedBox(width: 6),
-                  Icon(Icons.arrow_forward, color: AppColors.gold, size: 18),
-                ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

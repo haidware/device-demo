@@ -2,8 +2,85 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
 import 'package:device_demo/app.dart';
+import 'package:device_demo/screens/welcome_screens.dart';
 
 void main() {
+  test('QR links provide a valid numeric device ID', () {
+    expect(
+      scannedDeviceIdFromUri(
+        Uri.parse('https://example.test/?device_id=123456'),
+      ),
+      '123456',
+    );
+    expect(
+      scannedDeviceIdFromUri(
+        Uri.parse('https://example.test/?device_id=wrong'),
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('QR launch opens directly on the ordering homepage', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      HaidwareApp(
+        initialUri: Uri.parse('https://example.test/?device_id=123456'),
+      ),
+    );
+
+    expect(find.text('Good afternoon 👋'), findsOneWidget);
+    expect(find.text('Hotel staff sign in'), findsNothing);
+    expect(
+      find.text('This room QR is not connected to the ordering portal yet.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('homepage only shows menu departments made available', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeScreen(
+            cartCount: 0,
+            roomLabel: 'Room 101',
+            showKitchen: true,
+            showBar: false,
+            isQrGuest: true,
+            isConnecting: false,
+            connectionError: null,
+            onRetryConnection: () async {},
+            onEnterDeviceId: () {},
+            onOpenKitchen: () {},
+            onOpenBar: () {},
+            onOpenRoom: () {},
+            onOpenCart: () {},
+            onOpenNotifications: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Kitchen'), findsOneWidget);
+    expect(find.text('Bar'), findsNothing);
+    expect(find.text('Services'), findsNothing);
+    expect(find.byTooltip('Room details'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('staff can review payment message and confirm order', (
     tester,
   ) async {
@@ -34,7 +111,7 @@ void main() {
     await tester.tap(find.text('Grilled Chicken'));
     await tester.pumpAndSettle();
     expect(find.text('Estimated order time'), findsOneWidget);
-    expect(find.text('20–30 min'), findsOneWidget);
+    expect(find.text('25 min'), findsOneWidget);
     final estimateY = tester.getTopLeft(find.text('Estimated order time')).dy;
     final addToCartY = tester.getTopLeft(find.text('Add to Cart')).dy;
     expect(estimateY, lessThan(addToCartY));
@@ -90,7 +167,7 @@ void main() {
     );
     expect(find.text('Grilled Chicken × 1'), findsOneWidget);
     expect(find.text('Jollof Rice × 1'), findsOneWidget);
-    expect(find.text('20–30 min'), findsNWidgets(2));
+    expect(find.text('25 min'), findsNWidgets(2));
     expect(find.text('Track Order'), findsNothing);
     expect(find.text('Back to Home'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Back to Home'));

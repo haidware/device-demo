@@ -8,12 +8,18 @@ class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({
     super.key,
     required this.total,
+    required this.bankName,
+    required this.accountName,
+    required this.accountNumber,
     required this.senderName,
     required this.onConfirm,
     required this.onBack,
   });
 
   final int total;
+  final String bankName;
+  final String accountName;
+  final String accountNumber;
   final String senderName;
   final ValueChanged<String> onConfirm;
   final VoidCallback onBack;
@@ -54,19 +60,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
           const SizedBox(height: 3),
-          const InfoPanel(
-            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+          InfoPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
             child: Column(
               children: [
-                _BankRow(label: 'Bank', value: 'GTBank', compact: true),
+                _BankRow(label: 'Bank', value: widget.bankName, compact: true),
                 _BankRow(
                   label: 'Account Name',
-                  value: 'ABC Hotel',
+                  value: widget.accountName,
                   compact: true,
                 ),
                 _BankRow(
                   label: 'Account Number',
-                  value: '0123456789',
+                  value: widget.accountNumber,
                   compact: true,
                 ),
               ],
@@ -153,6 +159,8 @@ class PaymentRequestScreen extends StatelessWidget {
     required this.senderName,
     required this.total,
     required this.onConfirmOrder,
+    required this.isSubmitting,
+    required this.errorMessage,
     required this.onBack,
   });
 
@@ -160,7 +168,9 @@ class PaymentRequestScreen extends StatelessWidget {
   final String deviceIdNumber;
   final String senderName;
   final int total;
-  final VoidCallback onConfirmOrder;
+  final Future<void> Function() onConfirmOrder;
+  final bool isSubmitting;
+  final String? errorMessage;
   final VoidCallback onBack;
 
   @override
@@ -207,12 +217,20 @@ class PaymentRequestScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted, fontSize: 12),
           ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.red, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: GoldButton(
-              label: 'Confirm Order',
-              onPressed: onConfirmOrder,
+              label: isSubmitting ? 'Submitting…' : 'Confirm Order',
+              onPressed: isSubmitting ? null : () => onConfirmOrder(),
               icon: Icons.check,
             ),
           ),
@@ -348,8 +366,8 @@ class ConfirmScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const Text(
-                            estimatedPreparationTime,
+                          Text(
+                            lines[index].item.preparationTimeLabel,
                             style: TextStyle(
                               color: AppColors.goldLight,
                               fontSize: 14,

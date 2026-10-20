@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Handler View – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">TEAM WORKSPACE</p><h1>Handler View</h1><p class="muted">Active orders and guest requests across departments.</p></div></div>
+<div class="detail-grid">
+  <section class="panel"><h2>Active Orders</h2>
+  {% for order in orders %}<a class="work-card" href="{% url 'order_detail' order.pk %}"><strong>{{ order.order_number }}</strong><span>{{ order.room_identifier|default:"Unassigned" }} · {{ order.lines.count }} items</span><span class="badge">{{ order.get_status_display }}</span></a>{% empty %}<div class="empty-state">All clear — no active orders.</div>{% endfor %}
+  </section>
+  <section class="panel"><h2>Service Requests</h2>
+  {% for item in requests %}<div class="work-card"><strong>{{ item.service.name|default:"Guest request" }}</strong><span>{{ item.room_identifier|default:"Unassigned" }} · {{ item.details|default:"No details" }}</span><span class="badge">{{ item.get_status_display }}</span></div>{% empty %}<div class="empty-state">No active requests.</div>{% endfor %}
+  </section>
+</div>
+{% endblock %}

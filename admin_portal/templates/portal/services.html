@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Services – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">MENU &amp; SERVICES</p><h1>Services</h1></div></div>
+<div class="detail-grid">
+  <section class="panel"><h2>Service options</h2><div class="table-wrap"><table><thead><tr><th>Name</th><th>Department</th><th>Status</th><th></th></tr></thead><tbody>{% for service in services %}<tr><td>{{ service.name }}</td><td>{{ service.get_department_display }}</td><td>{% if service.active %}Active{% else %}Inactive{% endif %}</td><td><form method="post" action="{% url 'service_toggle' service.pk %}">{% csrf_token %}<button class="button subtle" type="submit">{% if service.active %}Deactivate{% else %}Activate{% endif %}</button></form></td></tr>{% empty %}<tr><td colspan="4" class="empty-cell">No services configured.</td></tr>{% endfor %}</tbody></table></div></section>
+  <section class="panel"><h2>Add service option</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Add Service</button></form></section>
+</div>
+{% endblock %}

@@ -8,6 +8,7 @@ class KitchenScreen extends StatelessWidget {
   const KitchenScreen({
     super.key,
     required this.items,
+    required this.department,
     required this.category,
     required this.cartCount,
     required this.onSelectCategory,
@@ -17,6 +18,7 @@ class KitchenScreen extends StatelessWidget {
   });
 
   final List<MenuItem> items;
+  final String department;
   final String category;
   final int cartCount;
   final ValueChanged<String> onSelectCategory;
@@ -24,17 +26,12 @@ class KitchenScreen extends StatelessWidget {
   final ValueChanged<MenuItem> onSelectItem;
   final VoidCallback onBack;
 
-  static const categories = [
-    'All',
-    'Starters',
-    'Main Course',
-    'Sides',
-    'Desserts',
-    'Bar',
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final categories = <String>{
+      'All',
+      for (final item in items) item.category,
+    }.toList();
     final visibleItems = category == 'All'
         ? items
         : items.where((item) => item.category == category).toList();
@@ -44,7 +41,7 @@ class KitchenScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(
-            title: category == 'Bar' ? 'Bar' : 'Kitchen',
+            title: department == 'bar' ? 'Bar' : 'Kitchen',
             centerTitle: false,
             onBack: onBack,
             trailing: IconButton(
@@ -311,8 +308,8 @@ class DetailScreen extends StatelessWidget {
                     style: TextStyle(color: AppColors.muted, fontSize: 14),
                   ),
                 ),
-                const Text(
-                  estimatedPreparationTime,
+                Text(
+                  item.preparationTimeLabel,
                   style: TextStyle(
                     color: AppColors.text,
                     fontSize: 15,

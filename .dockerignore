@@ -12,3 +12,9 @@ linux
 macos
 windows
 test
+**/__pycache__
+**/.env
+**/*.sqlite3
+admin_portal/staticfiles
+admin_portal/web_build
+admin_portal/.venv

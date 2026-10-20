@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Staff &amp; Shift Assignments – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">MANAGEMENT · STAFF CONTROL</p><h1>Staff on Shift</h1><p class="muted">Choose who receives new orders and service requests for each department.</p></div>
+  <a class="button subtle" href="{% url 'staff_add' %}">Register Staff</a>
+</div>
+<section class="stats-grid">
+  <article class="stat-card"><span>Staff on duty</span><strong>{{ staff_on_duty }}</strong><small>Across 3 departments</small></article>
+  <article class="stat-card"><span>Orders today</span><strong>{{ orders_today }}</strong><small>Kitchen and Bar</small></article>
+  <article class="stat-card"><span>Awaiting acceptance</span><strong>{{ awaiting_acceptance }}</strong><small>Requires attention</small></article>
+  <article class="stat-card"><span>WhatsApp routing</span><strong class="{% if whatsapp_enabled %}state-enabled{% else %}state-disabled{% endif %}">{% if whatsapp_enabled %}Enabled{% else %}Disabled{% endif %}</strong><small>Demo only · API not connected</small></article>
+</section>
+<section class="panel">
+  <div class="panel-heading">
+    <div><p class="eyebrow">SHIFT ASSIGNMENTS · ACTIVE: {{ active_shift_label }}</p><h2>Department routing</h2><p class="muted">Choose assignments below. Saving also makes this the active shift; new orders use its assignments.</p></div>
+    <form method="get"><label>Shift<select name="shift" onchange="this.form.submit()">{% for value,label in shift_choices %}<option value="{{ value }}" {% if selected_shift == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></form>
+  </div>
+  <form method="post">
+    {% csrf_token %}<input type="hidden" name="shift" value="{{ selected_shift }}">
+    <div class="assignment-grid">
+      {% for card in assignment_cards %}
+      <article class="assignment-card">
+        <div class="assignment-title"><h3>{{ card.label }}</h3><span class="badge">{% if card.staff %}On duty{% else %}Unassigned{% endif %}</span></div>
+        <label for="staff-{{ card.code }}">Responsible staff member</label>
+        <select id="staff-{{ card.code }}" name="staff_{{ card.code }}">
+          <option value="">No staff assigned</option>
+          {% for member in staff_members %}
+          <option value="{{ member.pk }}" {% if card.staff.pk == member.pk %}selected{% endif %}>{{ member.user.get_full_name|default:member.user.username }}{% if member.phone_number %} · {{ member.phone_number }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        {% if card.staff %}<div class="assigned-person"><span class="avatar">{{ card.staff.user.first_name|slice:":1" }}{{ card.staff.user.last_name|slice:":1" }}</span><div><strong>{{ card.staff.user.get_full_name|default:card.staff.user.username }}</strong><small>{{ card.staff.phone_number|default:"WhatsApp number missing" }}</small></div><span class="whatsapp-label">WhatsApp</span></div>{% else %}<p class="muted small-copy">Assign a registered staff member with a WhatsApp contact.</p>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    <p class="routing-note">Routing rule: each new order is assigned to the active staff member for its department. Staff receive demo-only WhatsApp notifications and do not update order status. Reception or an administrator handles acceptance and progress. Missing assignments are flagged for follow-up.</p>
+    <button class="button primary" type="submit">Save Shift Assignments</button>
+  </form>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><p class="eyebrow">LIVE OPERATIONS</p><h2>Orders &amp; service requests</h2><p class="muted">Reception monitors status and delivery records for every department.</p></div><a class="button subtle" href="{% url 'staff_shifts' %}?shift={{ selected_shift }}">Refresh</a></div>
+  <div class="table-wrap"><table><thead><tr><th>Order / Request</th><th>Room / Table</th><th>Department</th><th>Assigned to</th><th>Status</th><th>Notification</th><th>Reception action</th></tr></thead><tbody>
+  {% for item in live_items %}
+  <tr>
+    <td><strong>{% if item.order %}<a href="{% url 'order_detail' item.order.pk %}">{{ item.reference }}</a>{% else %}{{ item.reference }}{% endif %}</strong><small class="subtext">{{ item.summary }}</small></td>
+    <td>{{ item.room }}</td><td>{{ item.department }}</td>
+    <td>{% if item.staff %}{{ item.staff.user.get_full_name|default:item.staff.user.username }}{% else %}<span class="status-failed">Unassigned</span>{% endif %}</td>
+    <td><span class="badge">{{ item.status }}</span></td>
+    <td><span class="{% if 'Failed' in item.notification or 'No notification' in item.notification %}status-failed{% else %}status-demo{% endif %}">{{ item.notification }}</span></td>
+    <td>
+      {% if item.next_status and can_manage_operations %}
+      {% if item.order %}<form method="post" action="{% url 'update_order' item.order.pk %}">{% csrf_token %}<input type="hidden" name="action" value="update_status"><input type="hidden" name="status" value="{{ item.next_status.0 }}"><button class="button subtle" type="submit">{{ item.next_status.1 }}</button></form>
+      {% else %}<form method="post" action="{% url 'update_service_request' item.service_request.pk %}">{% csrf_token %}<input type="hidden" name="status" value="{{ item.next_status.0 }}"><button class="button subtle" type="submit">{{ item.next_status.1 }}</button></form>{% endif %}
+      {% else %}<span class="muted">Reception follow-up</span>{% endif %}
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="empty-cell">No active orders or requests.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<div class="detail-grid">
+  <section class="panel"><p class="eyebrow">RECENT ACTIVITY</p><h2>Notification log</h2>
+    {% for attempt in recent_activity %}<div class="activity-item"><strong>{{ attempt.get_status_display }}</strong><span>{{ attempt.get_department_display }}{% if attempt.order %} · {{ attempt.order.order_number }}{% elif attempt.service_request %} · Request {{ attempt.service_request.pk }}{% endif %}</span><small>{{ attempt.detail }} · {{ attempt.created_at|timesince }} ago</small></div>{% empty %}<div class="empty-state">No notification activity yet.</div>{% endfor %}
+  </section>
+  <section class="panel"><p class="eyebrow">WHATSAPP DELIVERY RULES</p><h2>Demo routing status</h2>
+    <div class="rule-item"><strong>New order</strong><span>Record a demo notification to the current assigned department contact.</span></div>
+    <div class="rule-item"><strong>No staff assigned</strong><span>Mark as failed and flag for reception follow-up.</span></div>
+    <div class="rule-item"><strong>No staff action required</strong><span>Staff only receive notifications. Reception/admin updates order status.</span></div>
+    <div class="rule-item"><strong>Real delivery</strong><span>Not connected. No messages are sent until an official provider is configured.</span></div>
+  </section>
+</div>
+{% endblock %}

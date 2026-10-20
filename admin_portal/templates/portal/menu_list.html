@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ department|title }} Menu – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">MENU &amp; SERVICES</p><h1>{{ department|title }} Menu</h1></div><a class="button primary" href="{% url 'menu_add' %}?department={{ department }}">Add Item</a></div>
+<div class="tabs"><a class="{% if department == 'kitchen' %}active{% endif %}" href="{% url 'menu_list' 'kitchen' %}">Kitchen</a><a class="{% if department == 'bar' %}active{% endif %}" href="{% url 'menu_list' 'bar' %}">Bar</a></div>
+<section class="panel table-wrap"><table><thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Prep time</th><th>Availability</th><th></th></tr></thead><tbody>
+{% for item in items %}<tr><td><strong>{{ item.name }}</strong>{% if item.description %}<small class="subtext">{{ item.description }}</small>{% endif %}</td><td>{{ item.category }}</td><td>₦{{ item.price|floatformat:2 }}</td><td>{{ item.preparation_minutes }} min</td><td><span class="badge {% if not item.available %}muted-badge{% endif %}">{% if item.available %}Available{% else %}Unavailable{% endif %}</span></td><td><a class="button subtle" href="{% url 'menu_edit' item.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="6" class="empty-cell">No menu items yet. Add an item to get started.</td></tr>{% endfor %}
+</tbody></table></section>
+{% endblock %}

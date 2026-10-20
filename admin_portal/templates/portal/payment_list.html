@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Payments – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">OPERATIONS</p><h1>Payments</h1></div></div>
+<form class="filter-bar" method="get"><label>Payment status<select name="status"><option value="">All Payment Statuses</option>{% for value,label in payment_statuses %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button primary" type="submit">Filter</button></form>
+<section class="panel table-wrap"><table><thead><tr><th>Order</th><th>Room</th><th>Amount</th><th>Method</th><th>Payment status</th><th>Sender</th><th>Time</th></tr></thead><tbody>
+{% for order in orders %}<tr><td><a href="{% url 'order_detail' order.pk %}">{{ order.order_number }}</a></td><td>{{ order.room_identifier|default:"—" }}</td><td>₦{{ order.total|floatformat:2 }}</td><td>Bank transfer</td><td><span class="badge {% if order.payment_status == 'review' %}warning{% endif %}">{{ order.get_payment_status_display }}</span></td><td>{{ order.sender_name|default:"—" }}</td><td>{{ order.created_at|date:"M j, H:i" }}</td></tr>{% empty %}<tr><td colspan="7" class="empty-cell">No payment records.</td></tr>{% endfor %}
+</tbody></table></section>
+{% endblock %}

@@ -1,5 +1,3 @@
-const estimatedPreparationTime = '20–30 min';
-
 class MenuItem {
   const MenuItem({
     required this.id,
@@ -7,6 +5,8 @@ class MenuItem {
     required this.description,
     required this.category,
     required this.price,
+    this.department = 'kitchen',
+    this.preparationMinutes = 25,
   });
 
   final String id;
@@ -14,6 +14,10 @@ class MenuItem {
   final String description;
   final String category;
   final int price;
+  final String department;
+  final int preparationMinutes;
+
+  String get preparationTimeLabel => '$preparationMinutes min';
 }
 
 class CartLine {
@@ -33,6 +37,7 @@ const menuItems = <MenuItem>[
         'Juicy grilled chicken with herbs and spices, served with vegetables.',
     category: 'Main Course',
     price: 6500,
+    department: 'kitchen',
   ),
   MenuItem(
     id: 'jollof',
@@ -41,6 +46,7 @@ const menuItems = <MenuItem>[
         'Nigerian jollof rice, slow cooked with peppers and fragrant spices.',
     category: 'Main Course',
     price: 5000,
+    department: 'kitchen',
   ),
   MenuItem(
     id: 'burger',
@@ -48,6 +54,7 @@ const menuItems = <MenuItem>[
     description: 'Grilled beef, fresh greens and house sauce in a toasted bun.',
     category: 'Main Course',
     price: 6000,
+    department: 'kitchen',
   ),
   MenuItem(
     id: 'pasta',
@@ -55,20 +62,23 @@ const menuItems = <MenuItem>[
     description: 'Creamy pasta with tender chicken and freshly grated herbs.',
     category: 'Main Course',
     price: 5500,
+    department: 'kitchen',
   ),
   MenuItem(
     id: 'mocktail',
     name: 'Mango Mocktail',
     description: 'Chilled mango and citrus mocktail, freshly prepared.',
-    category: 'Bar',
+    category: 'Drinks',
     price: 3000,
+    department: 'bar',
   ),
   MenuItem(
     id: 'orange-juice',
     name: 'Fresh Orange Juice',
     description: 'Freshly squeezed orange juice served over ice.',
-    category: 'Bar',
+    category: 'Drinks',
     price: 2500,
+    department: 'bar',
   ),
 ];
 

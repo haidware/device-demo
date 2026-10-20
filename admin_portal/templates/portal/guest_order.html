@@ -1,0 +1,20 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080a0e">
+  <title>HAIDWARE Guest Ordering</title>
+  <link rel="stylesheet" href="{% static 'portal/guest-order.css' %}">
+</head>
+<body>
+  <main class="guest-shell">
+    <div class="guest-frame">
+      <div id="guest-app" class="guest-app" aria-live="polite"></div>
+    </div>
+  </main>
+  {{ guest_config|json_script:"guest-config" }}
+  <script src="{% static 'portal/guest-order.js' %}" defer></script>
+</body>
+</html>

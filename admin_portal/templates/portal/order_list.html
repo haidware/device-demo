@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Orders – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">OPERATIONS</p><h1>Orders</h1></div></div>
+<form class="filter-bar" method="get">
+  <label>Department<select name="department"><option value="">All Departments</option><option value="kitchen" {% if department_filter == "kitchen" %}selected{% endif %}>Kitchen</option><option value="bar" {% if department_filter == "bar" %}selected{% endif %}>Bar</option></select></label>
+  <label>Status<select name="status"><option value="">All Statuses</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <button class="button primary" type="submit">Filter</button>
+</form>
+<section class="panel table-wrap"><table><thead><tr><th>Reference</th><th>Room</th><th>Items</th><th>Amount</th><th>Status</th><th>Payment</th><th>Time</th></tr></thead><tbody>
+{% for order in orders %}<tr><td><a href="{% url 'order_detail' order.pk %}">{{ order.order_number }}</a></td><td>{{ order.room_identifier|default:"—" }}</td><td>{% for line in order.lines.all %}{{ line.item_name }} × {{ line.quantity }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td><td>₦{{ order.total|floatformat:2 }}</td><td><span class="badge">{{ order.get_status_display }}</span></td><td><span class="badge {% if order.payment_status == 'review' %}warning{% endif %}">{{ order.get_payment_status_display }}</span></td><td>{{ order.created_at|date:"M j, H:i" }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty-cell">No orders found.</td></tr>{% endfor %}
+</tbody></table></section>
+{% endblock %}

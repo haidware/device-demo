@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Reports – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ANALYTICS</p><h1>Reports</h1></div><form class="filter-bar compact" method="get"><label>Report date<input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}"></label><button class="button primary" type="submit">Run report</button></form></div>
+<p class="muted">Summary for {{ report_date|date:"F j, Y" }}</p>
+<section class="stats-grid">
+  <article class="stat-card"><span>Total Orders</span><strong>{{ total_orders }}</strong></article>
+  <article class="stat-card"><span>Revenue</span><strong>₦{{ revenue|floatformat:2 }}</strong></article>
+  <article class="stat-card"><span>Completed</span><strong>{{ completed }}</strong></article>
+  <article class="stat-card"><span>Cancelled</span><strong>{{ cancelled }}</strong></article>
+  <article class="stat-card"><span>Kitchen Orders</span><strong>{{ kitchen }}</strong></article>
+  <article class="stat-card"><span>Bar Orders</span><strong>{{ bar }}</strong></article>
+  <article class="stat-card"><span>Service Requests</span><strong>{{ service_requests }}</strong></article>
+  <article class="stat-card"><span>Awaiting Payment</span><strong>{{ awaiting_payment }}</strong></article>
+</section>
+{% endblock %}

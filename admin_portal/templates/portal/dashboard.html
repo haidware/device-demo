@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – HAIDWARE{% endblock %}
+{% block content %}
+{% if notification_only %}
+<div class="page-heading"><div><p class="eyebrow">STAFF ACCESS</p><h1>Notifications only</h1><p class="muted">Your account is set up to receive shift notifications. Reception handles order and service-request updates; no action is required from staff here.</p></div></div>
+{% else %}
+<section class="stats-grid">
+  <article class="stat-card"><strong>{{ orders_today }}</strong><span>Orders Today</span><span class="stat-icon" aria-hidden="true">▤</span></article>
+  <article class="stat-card"><strong>₦{{ revenue_today|floatformat:0 }}</strong><span>Revenue Today</span><span class="stat-icon" aria-hidden="true">▣</span></article>
+  <article class="stat-card"><strong>{{ service_requests }}</strong><span>Service Requests</span><span class="stat-icon" aria-hidden="true">♧</span></article>
+  <article class="stat-card"><strong>{{ awaiting_payment }}</strong><span>Awaiting Payment</span><span class="stat-icon" aria-hidden="true">▱</span></article>
+</section>
+<div class="dashboard-panels">
+  <section class="panel dashboard-panel">
+    <div class="panel-heading"><h2>Active Orders</h2><a href="{% url 'orders' %}">View all</a></div>
+    {% if active_orders %}
+    <div class="table-wrap"><table><thead><tr><th>Order</th><th>Room / Device</th><th>Items</th><th>Order status</th><th>Payment</th></tr></thead><tbody>
+    {% for order in active_orders %}<tr><td><a href="{% url 'order_detail' order.pk %}">{{ order.order_number }}</a></td><td>{{ order.room_identifier|default:"—" }} · {{ order.device.device_id }}</td><td>{{ order.lines.count }}</td><td><span class="badge">{{ order.get_status_display }}</span></td><td><span class="badge {% if order.payment_status == 'review' %}warning{% endif %}">{{ order.get_payment_status_display }}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state">No active orders</div>{% endif %}
+  </section>
+  <section class="panel dashboard-panel">
+    <div class="panel-heading"><h2>Service Requests</h2><a href="{% url 'service_requests' %}">View all</a></div>
+    {% if active_requests %}
+    <div class="table-wrap"><table><thead><tr><th>Service</th><th>Room</th><th>Status</th></tr></thead><tbody>
+    {% for service_request in active_requests %}<tr><td>{{ service_request.service.name|default:"Other request" }}</td><td>{{ service_request.room_identifier|default:"—" }}</td><td><span class="badge">{{ service_request.get_status_display }}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state">No active requests</div>{% endif %}
+  </section>
+</div>
+{% endif %}
+{% endblock %}

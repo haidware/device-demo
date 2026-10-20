@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Staff – HAIDWARE{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">MANAGEMENT</p><h1>Staff</h1><p class="muted">Manage your team members, roles, and contact details.</p></div>
+  <a class="button primary" href="{% url 'staff_add' %}">Add Staff</a>
+</div>
+<section class="staff-overview" aria-label="Staff summary">
+  <article class="staff-overview-card"><span>Total staff</span><strong>{{ staff_count }}</strong></article>
+  <article class="staff-overview-card"><span>Active staff</span><strong>{{ active_staff_count }}</strong></article>
+</section>
+<section class="staff-card-grid" aria-label="Registered staff">
+  {% for member in staff_members %}
+  <article class="staff-profile-card">
+    <header class="staff-profile-header">
+      <span class="staff-avatar" aria-hidden="true">{{ member.first_name|first|default:member.username|first|upper }}{{ member.last_name|first|upper }}</span>
+      <span class="staff-status {% if member.is_active and member.staff_profile.active %}is-active{% else %}is-inactive{% endif %}">
+        {% if member.is_active and member.staff_profile.active %}Active{% else %}Inactive{% endif %}
+      </span>
+    </header>
+    <div class="staff-identity">
+      <h2>{{ member.get_full_name|default:member.username }}</h2>
+      <span>@{{ member.username }}</span>
+    </div>
+    <div class="staff-profile-details">
+      <div><span>Role</span><strong>{{ member.staff_profile.get_role_display }}</strong></div>
+      <div><span>Departments</span><strong>{{ member.staff_profile.departments|default:"Not assigned" }}</strong></div>
+      <div><span>WhatsApp number</span><strong>{{ member.staff_profile.phone_number|default:"Not provided" }}</strong></div>
+    </div>
+    <form class="staff-profile-actions" method="post" action="{% url 'staff_toggle' member.pk %}">
+      {% csrf_token %}
+      <button class="button subtle" type="submit">{% if member.is_active %}Deactivate{% else %}Activate{% endif %} account</button>
+    </form>
+  </article>
+  {% empty %}
+  <div class="staff-empty-state">
+    <span class="staff-empty-icon" aria-hidden="true">♙</span>
+    <h2>No staff registered yet</h2>
+    <p>Add a staff member to manage their role, department, and contact details here.</p>
+    <a class="button primary" href="{% url 'staff_add' %}">Add your first staff member</a>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
