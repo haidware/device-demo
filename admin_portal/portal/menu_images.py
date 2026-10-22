@@ -1,3 +1,4 @@
+import json
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -66,8 +67,21 @@ def store_menu_image(uploaded_file):
                     "Supabase Storage could not save the image. Try again."
                 )
     except urllib.error.HTTPError as error:
+        error_body = error.read(4096)
+        try:
+            error_data = json.loads(error_body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            error_data = {}
+        message = (
+            error_data.get("message")
+            if isinstance(error_data, dict)
+            else None
+        )
+        if not isinstance(message, str) or not message.strip():
+            message = "Check the bucket name and service-role key."
         raise MenuImageStorageError(
-            "Supabase Storage rejected the image. Check the bucket configuration."
+            f"Supabase Storage rejected the image (HTTP {error.code}): "
+            f"{message.strip()[:240]}"
         ) from error
     except (urllib.error.URLError, TimeoutError) as error:
         raise MenuImageStorageError(

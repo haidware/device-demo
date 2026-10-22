@@ -1,5 +1,7 @@
 import json
 from decimal import Decimal
+from io import BytesIO
+from urllib.error import HTTPError
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -7,6 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from .menu_images import MenuImageStorageError, store_menu_image
 from .models import (
     Device,
     MenuItem,
@@ -220,6 +223,34 @@ class PortalFlowTests(TestCase):
         self.item.refresh_from_db()
         self.assertEqual(self.item.image_url, "https://storage.test/menu/updated.png")
         store_image.assert_called_once()
+
+    @override_settings(
+        SUPABASE_URL="https://rgbqfzirecifubptdfqk.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY="test-service-role-key",
+        SUPABASE_STORAGE_BUCKET="menu-images",
+    )
+    @patch(
+        "portal.menu_images.urllib.request.urlopen",
+        side_effect=HTTPError(
+            "https://rgbqfzirecifubptdfqk.supabase.co/storage/v1/object/menu-images",
+            404,
+            "Not Found",
+            hdrs=None,
+            fp=BytesIO(b'{"statusCode":"404","message":"Bucket not found"}'),
+        ),
+    )
+    def test_supabase_upload_error_shows_provider_rejection_reason(self, urlopen):
+        image = SimpleUploadedFile(
+            "photo.png",
+            b"\x89PNG\r\n\x1a\nphoto-bytes",
+            content_type="image/png",
+        )
+
+        with self.assertRaises(MenuImageStorageError) as raised:
+            store_menu_image(image)
+
+        self.assertIn("HTTP 404", str(raised.exception))
+        self.assertIn("Bucket not found", str(raised.exception))
 
     def test_reception_cannot_change_menu_services_or_device_configuration(self):
         reception = User.objects.create_user(username="reception", password="x")
