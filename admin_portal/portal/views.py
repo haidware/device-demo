@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
-from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Prefetch, Sum
 from django.http import HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -49,13 +49,13 @@ User = get_user_model()
 
 def _admin_only(user):
     return user.is_superuser or StaffProfile.objects.filter(
-        user=user, role="admin", active=True
+        user=user, role="admin", active=True, property__is_active=True
     ).exists()
 
 
 def _manager_only(user):
     return user.is_superuser or StaffProfile.objects.filter(
-        user=user, role="manager", active=True
+        user=user, role="manager", active=True, property__is_active=True
     ).exists()
 
 
@@ -70,9 +70,13 @@ def _can_manage_configuration(user):
 def _property_for_user(user):
     if user.is_superuser:
         return PortalSettings.objects.order_by("pk").first()
-    profile = StaffProfile.objects.filter(user=user, active=True).select_related(
-        "property"
-    ).first()
+    profile = (
+        StaffProfile.objects.filter(
+            user=user, active=True, property__is_active=True
+        )
+        .select_related("property")
+        .first()
+    )
     return profile.property if profile else None
 
 
@@ -87,7 +91,7 @@ def _for_user_property(queryset, user):
 
 def _can_manage_operations(user):
     return user.is_superuser or StaffProfile.objects.filter(
-        user=user, role="admin", active=True
+        user=user, role="admin", active=True, property__is_active=True
     ).exists()
 
 
@@ -143,7 +147,10 @@ def manager_signup(request):
                 property_location=form.cleaned_data["property_location"],
             )
             StaffProfile.objects.create(
-                user=user, role="manager", property=property_settings
+                user=user,
+                role="manager",
+                property=property_settings,
+                phone_number=form.cleaned_data["phone_number"],
             )
         login(request, user)
         messages.success(
@@ -207,6 +214,69 @@ def dashboard(request):
         **_base(request),
     }
     return render(request, "portal/dashboard.html", context)
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser, login_url="dashboard")
+def command_center(request):
+    manager_profiles = StaffProfile.objects.filter(
+        role="manager"
+    ).select_related("user").order_by("user__first_name", "user__last_name")
+    properties = PortalSettings.objects.prefetch_related(
+        Prefetch(
+            "staff_profiles",
+            queryset=manager_profiles,
+            to_attr="command_center_managers",
+        )
+    ).order_by("-pk")
+    return render(
+        request,
+        "portal/command_center.html",
+        {
+            "properties": properties,
+            "property_count": properties.count(),
+            "active_count": properties.filter(is_active=True).count(),
+            "confirmed_count": properties.filter(
+                subscription_confirmed=True
+            ).count(),
+        },
+    )
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser, login_url="dashboard")
+@require_POST
+def command_center_action(request, property_id):
+    property_record = get_object_or_404(PortalSettings, pk=property_id)
+    action = request.POST.get("action")
+    if action == "confirm_subscription":
+        property_record.subscription_confirmed = True
+        property_record.subscription_confirmed_at = timezone.now()
+        property_record.save(
+            update_fields=["subscription_confirmed", "subscription_confirmed_at", "updated_at"]
+        )
+        messages.success(request, f"Subscription confirmed for {property_record.property_name}.")
+    elif action == "revoke_subscription":
+        property_record.subscription_confirmed = False
+        property_record.subscription_confirmed_at = None
+        property_record.save(
+            update_fields=["subscription_confirmed", "subscription_confirmed_at", "updated_at"]
+        )
+        messages.success(request, f"Subscription status reset for {property_record.property_name}.")
+    elif action == "deactivate":
+        property_record.is_active = False
+        property_record.save(update_fields=["is_active", "updated_at"])
+        messages.success(
+            request,
+            f"{property_record.property_name} was deactivated. Its records are retained.",
+        )
+    elif action == "reactivate":
+        property_record.is_active = True
+        property_record.save(update_fields=["is_active", "updated_at"])
+        messages.success(request, f"{property_record.property_name} was reactivated.")
+    else:
+        return HttpResponse("Choose a valid command-center action.", status=400)
+    return redirect("command_center")
 
 
 @login_required

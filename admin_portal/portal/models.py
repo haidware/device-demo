@@ -372,8 +372,14 @@ class WhatsAppAttempt(models.Model):
 class PortalSettings(models.Model):
     SHIFT_CHOICES = SHIFT_CHOICES
 
+    property_id = models.CharField(
+        max_length=24, unique=True, blank=True, editable=False
+    )
     property_name = models.CharField(max_length=120, default="HAIDWARE Hospitality")
     property_location = models.CharField(max_length=240, blank=True)
+    is_active = models.BooleanField(default=True)
+    subscription_confirmed = models.BooleanField(default=False)
+    subscription_confirmed_at = models.DateTimeField(null=True, blank=True)
     currency = models.CharField(max_length=8, default="NGN")
     bank_name = models.CharField(max_length=120, blank=True)
     account_name = models.CharField(max_length=120, blank=True)
@@ -386,3 +392,9 @@ class PortalSettings(models.Model):
 
     def __str__(self):
         return self.property_name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.property_id:
+            self.property_id = f"HDW-{self.pk:06d}"
+            super().save(update_fields=["property_id"])

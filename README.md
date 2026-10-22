@@ -87,6 +87,15 @@ property and bank details in **Settings**. Administrators manage kitchen/bar
 menus, services, devices, rooms, QR codes, staff, and orders. These are portal
 roles; no Django superuser is needed for day-to-day portal access.
 
+Platform superusers can open `/commandcenter` to review properties and manager
+contact details, confirm or reset subscription status, and deactivate or
+reactivate accounts. Every property receives a stable `HDW-` ID. Deactivation
+retains all property and activity records while blocking staff portal access
+and device API requests; it does not permanently erase data.
+Create a separate platform-operator login with `python manage.py createsuperuser`
+against the deployed database. Do not grant Django superuser privileges to
+hotel or lounge managers.
+
 Each manager signup creates a separate property record in the shared database.
 Rooms, devices, menu items, services, staff, orders, requests, shift
 assignments, and notification activity are scoped to that property. Device APIs

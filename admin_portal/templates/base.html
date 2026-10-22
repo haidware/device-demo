@@ -15,6 +15,9 @@
         <span><strong>HAIDWARE</strong><small>Hospitality</small></span>
       </a>
       <nav>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'command_center' %}"{% if request.resolver_match.url_name == "command_center" %} aria-current="page"{% endif %}>Command Center</a>
+        {% endif %}
         <a href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a>
         {% if can_manage_operations %}
         <span class="nav-label">Operations</span>

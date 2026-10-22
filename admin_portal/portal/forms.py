@@ -17,6 +17,21 @@ from .models import (
 User = get_user_model()
 
 
+def _validated_phone_number(value):
+    phone_number = value.strip()
+    allowed = set("0123456789 +-()")
+    digits = [character for character in phone_number if character.isdigit()]
+    if (
+        not 7 <= len(digits) <= 15
+        or any(character not in allowed for character in phone_number)
+        or ("+" in phone_number and not phone_number.startswith("+"))
+    ):
+        raise forms.ValidationError(
+            "Enter a valid contact number using 7 to 15 digits."
+        )
+    return phone_number
+
+
 class RoomForm(forms.ModelForm):
     class Meta:
         model = Room
@@ -170,18 +185,7 @@ class StaffCreateForm(forms.Form):
         return username
 
     def clean_phone_number(self):
-        phone_number = self.cleaned_data["phone_number"].strip()
-        allowed = set("0123456789 +-()")
-        digits = [character for character in phone_number if character.isdigit()]
-        if (
-            not 7 <= len(digits) <= 15
-            or any(character not in allowed for character in phone_number)
-            or ("+" in phone_number and not phone_number.startswith("+"))
-        ):
-            raise forms.ValidationError(
-                "Enter a valid contact number using 7 to 15 digits."
-            )
-        return phone_number
+        return _validated_phone_number(self.cleaned_data["phone_number"])
 
     @transaction.atomic
     def save(self):
@@ -226,6 +230,7 @@ class ManagerSignupForm(UserCreationForm):
     email = forms.EmailField()
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
+    phone_number = forms.CharField(max_length=24)
     property_name = forms.CharField(
         label="Hotel / lounge name",
         max_length=120,
@@ -234,6 +239,9 @@ class ManagerSignupForm(UserCreationForm):
         label="Hotel / lounge location",
         max_length=240,
     )
+
+    def clean_phone_number(self):
+        return _validated_phone_number(self.cleaned_data["phone_number"])
 
     class Meta:
         model = User

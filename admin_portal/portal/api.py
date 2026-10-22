@@ -42,7 +42,7 @@ def _device_from_id(device_id):
         return None
     return (
         Device.objects.select_related("room", "property")
-        .filter(device_id=device_id, active=True)
+        .filter(device_id=device_id, active=True, property__is_active=True)
         .filter(Q(room__isnull=True) | Q(room__active=True))
         .first()
     )

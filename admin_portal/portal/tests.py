@@ -68,6 +68,7 @@ class PortalFlowTests(TestCase):
                 "first_name": "Property",
                 "last_name": "Manager",
                 "email": "manager@example.test",
+                "phone_number": "+234 801 234 5678",
                 "property_name": "Harbor Lounge",
                 "property_location": "Victoria Island, Lagos",
                 "password1": "Unique-Manager-Passphrase-2841",
@@ -81,7 +82,108 @@ class PortalFlowTests(TestCase):
         property_settings = manager.staff_profile.property
         self.assertEqual(property_settings.property_name, "Harbor Lounge")
         self.assertEqual(property_settings.property_location, "Victoria Island, Lagos")
+        self.assertRegex(property_settings.property_id, r"^HDW-\d{6,}$")
+        self.assertEqual(manager.staff_profile.phone_number, "+234 801 234 5678")
+        self.assertFalse(property_settings.subscription_confirmed)
         self.assertIn("_auth_user_id", self.client.session)
+
+    def test_command_center_lists_properties_and_manages_subscription_and_account(self):
+        manager_user = User.objects.create_user(
+            username="command.manager",
+            email="manager@command.test",
+            password="Strong-Command-Manager-Passphrase-2841",
+            first_name="Morgan",
+            last_name="Manager",
+        )
+        StaffProfile.objects.create(
+            user=manager_user,
+            property=self.property,
+            role="manager",
+            phone_number="+234 802 111 2222",
+        )
+        self.client.force_login(self.admin)
+
+        page = self.client.get("/commandcenter")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, self.property.property_id)
+        self.assertContains(page, "manager@command.test")
+        self.assertContains(page, "+234 802 111 2222")
+        self.assertContains(page, "Properties onboarded")
+
+        confirm = self.client.post(
+            reverse("command_center_action", args=[self.property.pk]),
+            {"action": "confirm_subscription"},
+        )
+        self.assertRedirects(confirm, reverse("command_center"))
+        self.property.refresh_from_db()
+        self.assertTrue(self.property.subscription_confirmed)
+        self.assertIsNotNone(self.property.subscription_confirmed_at)
+
+        reset = self.client.post(
+            reverse("command_center_action", args=[self.property.pk]),
+            {"action": "revoke_subscription"},
+        )
+        self.assertRedirects(reset, reverse("command_center"))
+        self.property.refresh_from_db()
+        self.assertFalse(self.property.subscription_confirmed)
+        self.assertIsNone(self.property.subscription_confirmed_at)
+
+        deactivate = self.client.post(
+            reverse("command_center_action", args=[self.property.pk]),
+            {"action": "deactivate"},
+        )
+        self.assertRedirects(deactivate, reverse("command_center"))
+        self.property.refresh_from_db()
+        self.assertFalse(self.property.is_active)
+        self.assertTrue(Room.objects.filter(pk=self.room.pk).exists())
+        self.assertTrue(User.objects.filter(pk=manager_user.pk).exists())
+        self.assertEqual(
+            self.client.post(
+                reverse("api_device_session"),
+                data=json.dumps({"device_id": self.device.device_id}),
+                content_type="application/json",
+            ).status_code,
+            403,
+        )
+        self.client.force_login(manager_user)
+        self.assertEqual(
+            self.client.get(reverse("menu_list", args=["kitchen"])).status_code,
+            302,
+        )
+
+        self.client.force_login(self.admin)
+        reactivate = self.client.post(
+            reverse("command_center_action", args=[self.property.pk]),
+            {"action": "reactivate"},
+        )
+        self.assertRedirects(reactivate, reverse("command_center"))
+        self.property.refresh_from_db()
+        self.assertTrue(self.property.is_active)
+        self.assertEqual(
+            self.client.post(
+                reverse("api_device_session"),
+                data=json.dumps({"device_id": self.device.device_id}),
+                content_type="application/json",
+            ).status_code,
+            200,
+        )
+
+    def test_command_center_is_superuser_only_and_actions_require_post(self):
+        administrator = User.objects.create_user(
+            username="not.command.admin",
+            password="Strong-Portal-Admin-Passphrase-2841",
+        )
+        StaffProfile.objects.create(
+            user=administrator, property=self.property, role="admin"
+        )
+        self.client.force_login(administrator)
+        response = self.client.get(reverse("command_center"))
+        self.assertEqual(response.status_code, 302)
+        action_response = self.client.get(
+            reverse("command_center_action", args=[self.property.pk])
+        )
+        self.assertEqual(action_response.status_code, 302)
 
     def test_manager_can_create_admin_account_and_set_bank_details(self):
         manager = User.objects.create_user(
