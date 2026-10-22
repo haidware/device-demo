@@ -92,9 +92,16 @@ contact details, confirm or reset subscription status, and deactivate or
 reactivate accounts. Every property receives a stable `HDW-` ID. Deactivation
 retains all property and activity records while blocking staff portal access
 and device API requests; it does not permanently erase data.
-Create a separate platform-operator login with `python manage.py createsuperuser`
-against the deployed database. Do not grant Django superuser privileges to
-hotel or lounge managers.
+For Render deployments without Shell access, set `SUPER_USER_LOGIN_USERNAME`
+and `SUPER_USER_LOGIN_KEY` in the service's Environment settings. The key is
+the platform superuser password: use a strong unique value and keep it private.
+On startup, the app creates that superuser if it does not exist; if it already
+exists as a superuser, its password is synchronized to the configured key.
+Remove or rotate these variables in Render to manage future bootstrap behavior.
+Startup refuses to elevate an existing non-superuser account with the same
+username. If these variables are unset, create a platform operator using
+`python manage.py createsuperuser` from an authorized deployment shell. Do not
+grant Django superuser privileges to hotel or lounge managers.
 
 Each manager signup creates a separate property record in the shared database.
 Rooms, devices, menu items, services, staff, orders, requests, shift

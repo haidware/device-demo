@@ -1,4 +1,5 @@
 import json
+import os
 from decimal import Decimal
 from io import BytesIO
 from urllib.error import HTTPError
@@ -6,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command, CommandError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -51,6 +53,63 @@ class PortalFlowTests(TestCase):
             price=Decimal("5000.00"),
             preparation_minutes=25,
         )
+
+    def test_command_center_superuser_bootstraps_from_configured_environment(self):
+        bootstrap_password = "Unique-Platform-Secret-Password-9842!"
+        with patch.dict(
+            os.environ,
+            {
+                "SUPER_USER_LOGIN_USERNAME": "platform.operator",
+                "SUPER_USER_LOGIN_KEY": bootstrap_password,
+            },
+        ):
+            call_command("bootstrap_command_center", verbosity=0)
+
+        operator = User.objects.get(username="platform.operator")
+        self.assertTrue(operator.is_superuser)
+        self.assertTrue(operator.is_staff)
+        self.assertTrue(operator.check_password(bootstrap_password))
+
+        rotated_password = "Rotated-Platform-Secret-Password-6248!"
+        with patch.dict(
+            os.environ,
+            {
+                "SUPER_USER_LOGIN_USERNAME": "platform.operator",
+                "SUPER_USER_LOGIN_KEY": rotated_password,
+            },
+        ):
+            call_command("bootstrap_command_center", verbosity=0)
+
+        operator.refresh_from_db()
+        self.assertTrue(operator.check_password(rotated_password))
+        self.assertEqual(User.objects.filter(username="platform.operator").count(), 1)
+
+    def test_command_center_bootstrap_does_not_elevate_existing_staff(self):
+        existing_user = User.objects.create_user(
+            username="existing.staff",
+            password="Strong-Existing-Staff-Password-2841!",
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "SUPER_USER_LOGIN_USERNAME": existing_user.username,
+                "SUPER_USER_LOGIN_KEY": "Unique-Platform-Secret-Password-9842!",
+            },
+        ):
+            with self.assertRaises(CommandError):
+                call_command("bootstrap_command_center", verbosity=0)
+
+        existing_user.refresh_from_db()
+        self.assertFalse(existing_user.is_superuser)
+
+    def test_command_center_bootstrap_requires_both_environment_values(self):
+        with patch.dict(
+            os.environ,
+            {"SUPER_USER_LOGIN_USERNAME": "platform.operator"},
+            clear=True,
+        ):
+            with self.assertRaises(CommandError):
+                call_command("bootstrap_command_center", verbosity=0)
 
     def test_admin_entry_and_qr_order_use_public_routes(self):
         self.assertEqual(reverse("dashboard"), "/admin/dashboard/")
