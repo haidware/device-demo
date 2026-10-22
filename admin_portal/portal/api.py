@@ -1,9 +1,14 @@
 import json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlsplit
+from urllib.request import Request, urlopen
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -18,6 +23,9 @@ from .models import (
     ServiceRequest,
 )
 from .routing import _record_routing_attempts
+
+MAX_MENU_IMAGE_BYTES = 5 * 1024 * 1024
+MENU_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def _json_body(request):
@@ -45,7 +53,7 @@ def _device_error():
     return JsonResponse({"error": "Device ID is invalid or inactive."}, status=403)
 
 
-def _menu_item_payload(item):
+def _menu_item_payload(request, item):
     return {
         "id": item.pk,
         "name": item.name,
@@ -54,7 +62,11 @@ def _menu_item_payload(item):
         "department": item.department,
         "price": str(item.price),
         "preparation_minutes": item.preparation_minutes,
-        "image_url": item.image_url or None,
+        "image_url": (
+            request.build_absolute_uri(reverse("api_menu_image", args=[item.pk]))
+            if item.image_url
+            else None
+        ),
     }
 
 
@@ -97,7 +109,55 @@ def device_menu(request):
     device.last_seen = timezone.now()
     device.save(update_fields=["last_seen"])
     items = MenuItem.objects.filter(available=True).order_by("department", "category", "name")
-    return JsonResponse({"items": [_menu_item_payload(item) for item in items]})
+    return JsonResponse({"items": [_menu_item_payload(request, item) for item in items]})
+
+
+@require_http_methods(["GET"])
+def menu_image(request, item_id):
+    item = MenuItem.objects.filter(available=True, pk=item_id).only("image_url").first()
+    if item is None or not item.image_url:
+        return HttpResponse("Menu image not found.", status=404)
+
+    supabase_url = urlsplit(settings.SUPABASE_URL)
+    image_url = urlsplit(item.image_url)
+    public_bucket_prefix = (
+        f"/storage/v1/object/public/{quote(settings.SUPABASE_STORAGE_BUCKET, safe='')}/"
+    )
+    if (
+        supabase_url.scheme != "https"
+        or not supabase_url.netloc
+        or image_url.scheme != "https"
+        or image_url.netloc.lower() != supabase_url.netloc.lower()
+        or not image_url.path.startswith(public_bucket_prefix)
+        or image_url.query
+        or image_url.fragment
+    ):
+        return HttpResponse("Stored menu image URL is invalid.", status=502)
+
+    try:
+        image_request = Request(
+            item.image_url,
+            headers={"Accept": ", ".join(MENU_IMAGE_TYPES)},
+        )
+        with urlopen(image_request, timeout=15) as response:
+            content_type = response.headers.get_content_type()
+            if content_type not in MENU_IMAGE_TYPES:
+                return HttpResponse(
+                    "Stored menu image has an unsupported format.", status=502
+                )
+            image = response.read(MAX_MENU_IMAGE_BYTES + 1)
+    except HTTPError:
+        return HttpResponse("Menu image storage rejected the request.", status=502)
+    except (URLError, TimeoutError):
+        return HttpResponse("Menu image storage is unavailable.", status=502)
+
+    if len(image) > MAX_MENU_IMAGE_BYTES:
+        return HttpResponse("Stored menu image exceeds the size limit.", status=502)
+
+    result = HttpResponse(image, content_type=content_type)
+    result["Cache-Control"] = "public, max-age=3600"
+    result["X-Content-Type-Options"] = "nosniff"
+    return result
 
 
 @csrf_exempt

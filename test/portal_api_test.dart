@@ -41,6 +41,8 @@ void main() {
                   'department': 'kitchen',
                   'price': '5000.00',
                   'preparation_minutes': 25,
+                  'image_url':
+                      'https://admin.example.test/api/v1/menu/42/image/',
                 },
               ],
             }),
@@ -87,6 +89,10 @@ void main() {
       expect(session.menuItems.single.id, '42');
       expect(session.menuItems.single.price, 5000);
       expect(session.menuItems.single.department, 'kitchen');
+      expect(
+        session.menuItems.single.imageUrl,
+        'https://admin.example.test/api/v1/menu/42/image/',
+      );
       expect(session.menuItems.single.preparationTimeLabel, '25 min');
       expect(requests[1].headers['X-Device-ID'], '123456');
       expect(session.services.single.name, 'Fresh Towels');

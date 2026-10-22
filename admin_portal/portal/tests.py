@@ -1,6 +1,6 @@
 import json
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -268,8 +268,46 @@ class PortalFlowTests(TestCase):
         ).json()["items"]
         self.assertEqual(
             next(entry for entry in payload if entry["id"] == item.pk)["image_url"],
-            item.image_url,
+            f"http://testserver{reverse('api_menu_image', args=[item.pk])}",
         )
+
+    @override_settings(
+        SUPABASE_URL="https://rgbqfzirecifubptdfqk.supabase.co",
+        SUPABASE_STORAGE_BUCKET="menu-images",
+    )
+    @patch("portal.api.urlopen")
+    def test_menu_image_is_proxied_from_supabase_on_same_origin(self, urlopen):
+        self.item.image_url = (
+            "https://rgbqfzirecifubptdfqk.supabase.co/storage/v1/object/"
+            "public/menu-images/menu/jollof.png"
+        )
+        self.item.save(update_fields=["image_url"])
+        upstream_response = MagicMock()
+        upstream_response.headers.get_content_type.return_value = "image/png"
+        upstream_response.read.return_value = b"\x89PNG\r\n\x1a\nimage-bytes"
+        urlopen.return_value.__enter__.return_value = upstream_response
+
+        response = self.client.get(reverse("api_menu_image", args=[self.item.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.content, b"\x89PNG\r\n\x1a\nimage-bytes")
+        urlopen.assert_called_once()
+
+    @override_settings(
+        SUPABASE_URL="https://rgbqfzirecifubptdfqk.supabase.co",
+        SUPABASE_STORAGE_BUCKET="menu-images",
+    )
+    @patch("portal.api.urlopen")
+    def test_menu_image_proxy_rejects_external_image_hosts(self, urlopen):
+        self.item.image_url = "https://untrusted.example/image.png"
+        self.item.save(update_fields=["image_url"])
+
+        response = self.client.get(reverse("api_menu_image", args=[self.item.pk]))
+
+        self.assertEqual(response.status_code, 502)
+        urlopen.assert_not_called()
 
     def test_login_required_for_portal_and_staff_management(self):
         response = self.client.get(reverse("dashboard"))
