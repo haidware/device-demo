@@ -30,21 +30,35 @@ class DeviceForm(forms.ModelForm):
         required=False,
         disabled=True,
     )
+    room_identifier = forms.CharField(
+        label="Room / table number",
+        max_length=80,
+        help_text="Enter the location for this device. Existing room or table numbers are reused.",
+    )
 
     class Meta:
         model = Device
-        fields = ["name", "room", "active"]
-        widgets = {"room": forms.Select(attrs={"required": False})}
+        fields = ["name", "active"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
             self.fields["device_id"].initial = self.instance.device_id
+            self.fields["room_identifier"].initial = (
+                self.instance.room.identifier if self.instance.room else ""
+            )
         else:
             self.fields.pop("device_id")
 
+    def clean_room_identifier(self):
+        return self.cleaned_data["room_identifier"].strip()
+
     def save(self, commit=True):
         device = super().save(commit=False)
+        room, _ = Room.objects.get_or_create(
+            identifier=self.cleaned_data["room_identifier"]
+        )
+        device.room = room
         if not device.pk:
             device.device_id = generate_device_id()
         if commit:

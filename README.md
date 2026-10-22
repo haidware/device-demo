@@ -53,6 +53,10 @@ app. The guest/device app remains at `/`, the admin dashboard is available at
 `/admin`, and room/table QR codes open the browser ordering flow at
 `/guest-order/`. Both ordering experiences use the portal's menu, device
 sessions, payment settings, preparation estimates, and order API.
+Register devices from **Devices** to generate a device ID and enter its room or
+table number; an existing location is reused if the number is already set up.
+The separate **Rooms & Tables QR** flow is for creating locations and QR codes
+for QR-only guest access.
 
 For local development, run the portal from `admin_portal`:
 

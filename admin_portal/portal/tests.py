@@ -396,20 +396,58 @@ class PortalFlowTests(TestCase):
         self.assertRegex(device.device_id, r"^\d{10}$")
         self.assertEqual(device.room, room)
 
-    def test_device_registration_generates_id_and_assigns_selected_room(self):
+    def test_device_registration_generates_id_and_creates_room_number(self):
         self.client.force_login(self.admin)
         response = self.client.post(
             reverse("device_add"),
             {
                 "name": "Room 101 ordering tablet",
-                "room": str(self.room.pk),
+                "room_identifier": "205",
                 "active": "on",
             },
         )
         self.assertRedirects(response, reverse("devices"))
         device = Device.objects.get(name="Room 101 ordering tablet")
         self.assertRegex(device.device_id, r"^\d{10}$")
+        self.assertEqual(device.room.identifier, "205")
+
+    def test_device_registration_reuses_existing_room_number(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse("device_add"),
+            {
+                "name": "Second Room 101 tablet",
+                "room_identifier": "101",
+                "active": "on",
+            },
+        )
+        self.assertRedirects(response, reverse("devices"))
+        device = Device.objects.get(name="Second Room 101 tablet")
         self.assertEqual(device.room, self.room)
+        self.assertEqual(Room.objects.filter(identifier="101").count(), 1)
+
+    def test_generated_device_id_signs_in_to_its_assigned_room(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse("device_add"),
+            {
+                "name": "Room 205 ordering tablet",
+                "room_identifier": "205",
+                "active": "on",
+            },
+        )
+        self.assertRedirects(response, reverse("devices"))
+        device = Device.objects.get(name="Room 205 ordering tablet")
+
+        sign_in_response = self.client.post(
+            reverse("api_device_session"),
+            data=json.dumps({"device_id": device.device_id}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(sign_in_response.status_code, 200)
+        self.assertEqual(sign_in_response.json()["device_id"], device.device_id)
+        self.assertEqual(sign_in_response.json()["room"], "205")
 
     def test_menu_api_only_exposes_admin_available_items(self):
         unavailable = MenuItem.objects.create(

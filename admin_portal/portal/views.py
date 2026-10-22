@@ -563,7 +563,7 @@ def device_create(request):
         device = form.save()
         messages.success(
             request,
-            f"Device registered with its system-assigned ID {device.device_id}.",
+            f"Device registered for {device.room.identifier} with system-assigned ID {device.device_id}.",
         )
         return redirect("devices")
     return render(
