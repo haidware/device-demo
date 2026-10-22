@@ -16,17 +16,17 @@ flutter test
 flutter analyze
 ```
 
-## Deploy on Railway
+## Deploy on Render
 
-The root-level `railway.json` selects the multi-stage `Dockerfile` builder,
-builds the Flutter web release, and serves it with Nginx. The server listens on
-Railway's injected `PORT`, supports Flutter web route fallbacks, and exposes
-`/health` for Railway's health check.
+The root-level `Dockerfile` builds the Flutter web release and serves it from
+the Django portal. The server listens on Render's injected `PORT`, supports
+Flutter web route fallbacks, and exposes `/health` for Render's health check.
 
-Connect the GitHub repository to a Railway service with the service root
-directory set to the repository root (the directory containing `railway.json`
-and `Dockerfile`). Subsequent pushes to the connected branch trigger Railway
-deployments.
+Connect the GitHub repository to a Render **Web Service**, select **Docker** as
+the runtime, and leave the root directory at the repository root (the directory
+containing `Dockerfile`). Set the health check path to `/health`. Deployments
+use Render's injected `PORT`; set `API_BASE_URL` as a Docker build argument only
+if the public app domain changes.
 
 ## Install as a PWA
 
@@ -48,7 +48,7 @@ official WhatsApp provider and its credentials/templates.
 
 ## Admin portal and QR ordering
 
-The Django admin portal is deployed in the same Railway service as this Flutter
+The Django admin portal is deployed in the same Render service as this Flutter
 app. The guest/device app remains at `/`, the admin dashboard is available at
 `/admin`, and room/table QR codes open the browser ordering flow at
 `/guest-order/`. Both ordering experiences use the portal's menu, device
@@ -82,7 +82,7 @@ roles; no Django superuser is needed for day-to-day portal access.
 
 Menu photos are uploaded from a phone camera or image picker to Supabase
 Storage. Create a **public** bucket named `menu-images` (or set
-`SUPABASE_STORAGE_BUCKET` to the bucket name) and configure these Railway
+`SUPABASE_STORAGE_BUCKET` to the bucket name) and configure these Render
 variables:
 
 - `SUPABASE_URL`: the project URL, for example `https://<project-ref>.supabase.co`.
@@ -94,14 +94,15 @@ The bucket must allow public reads so guest menus and the Flutter device can
 display photos. Image writes are performed by Django using the private server
 key. Accepted image formats are JPEG, PNG, and WebP, up to 5 MB each.
 
-The Railway Docker build serves Flutter and Django from one origin. Its
+The Render Docker build serves Flutter and Django from one origin. Its
 `API_BASE_URL` build argument defaults to
-`https://device-demo-production.up.railway.app`; set it to the public service
-origin if the Railway domain changes. Configure these Railway variables:
+`https://device-demo.onrender.com`; set it to the public service origin if the
+Render domain changes. Configure these Render environment variables:
 
 - `SECRET_KEY`: a unique, randomly generated production secret.
 - `DEBUG`: `0`.
-- `ALLOWED_HOSTS`: the Railway hostname (and any custom domain), comma-separated.
+- `ALLOWED_HOSTS`: `device-demo.onrender.com` (and any custom domain),
+  comma-separated.
 - `CSRF_TRUSTED_ORIGINS`: the matching HTTPS origins.
 - `DATABASE_URL`: the Supabase PostgreSQL URI from **Project Settings → Database
   → Connection string** (choose URI format). Do not use the project `https://…
@@ -111,10 +112,10 @@ origin if the Railway domain changes. Configure these Railway variables:
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET`:
   configure Supabase Storage for persistent menu photos.
 
-The container runs migrations before starting and serves `/health` for Railway's
+The container runs migrations before starting and serves `/health` for Render's
 health check. After deploying, use `/admin/manager-signup/` to create the first
 portal manager, then create an administrator account from **Staff**.
-Railway terminates HTTPS before requests reach the container, so
+Render terminates HTTPS before requests reach the container, so
 `SECURE_SSL_REDIRECT` defaults to `0`; the platform serves the public app over
 HTTPS. Do not commit `.env` files or local SQLite databases. For cross-origin
 external tablet deployments, add their origins to `CORS_ALLOWED_ORIGINS`.
