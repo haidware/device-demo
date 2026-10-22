@@ -62,6 +62,8 @@ def _menu_item_payload(request, item):
         "department": item.department,
         "price": str(item.price),
         "preparation_minutes": item.preparation_minutes,
+        "estimated_minutes": item.preparation_minutes,
+        "available": item.available,
         "image_url": (
             request.build_absolute_uri(reverse("api_menu_image", args=[item.pk]))
             if item.image_url
@@ -89,6 +91,10 @@ def device_session(request):
             "device_id": device.device_id,
             "device_name": device.name,
             "room": device.room.identifier if device.room else None,
+            "property": {
+                "name": settings.property_name if settings else "",
+                "location": settings.property_location if settings else "",
+            },
             "payment_details": {
                 "bank_name": settings.bank_name if settings else "",
                 "account_name": settings.account_name if settings else "",

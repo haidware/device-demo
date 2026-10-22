@@ -33,12 +33,12 @@
       </article>
       {% endfor %}
     </div>
-    <p class="routing-note">Routing rule: each new order is assigned to the active staff member for its department. Staff receive demo-only WhatsApp notifications and do not update order status. Reception or an administrator handles acceptance and progress. Missing assignments are flagged for follow-up.</p>
+    <p class="routing-note">Routing rule: each new order is assigned to the active staff member for its department. Staff receive demo-only WhatsApp notifications and do not update order status. An administrator handles acceptance and progress. Missing assignments are flagged for follow-up.</p>
     <button class="button primary" type="submit">Save Shift Assignments</button>
   </form>
 </section>
 <section class="panel">
-  <div class="panel-heading"><div><p class="eyebrow">LIVE OPERATIONS</p><h2>Orders &amp; service requests</h2><p class="muted">Reception monitors status and delivery records for every department.</p></div><a class="button subtle" href="{% url 'staff_shifts' %}?shift={{ selected_shift }}">Refresh</a></div>
+  <div class="panel-heading"><div><p class="eyebrow">LIVE OPERATIONS</p><h2>Orders &amp; service requests</h2><p class="muted">Administrators monitor status and delivery records for every department.</p></div><a class="button subtle" href="{% url 'staff_shifts' %}?shift={{ selected_shift }}">Refresh</a></div>
   <div class="table-wrap"><table><thead><tr><th>Order / Request</th><th>Room / Table</th><th>Department</th><th>Assigned to</th><th>Status</th><th>Notification</th><th>Reception action</th></tr></thead><tbody>
   {% for item in live_items %}
   <tr>

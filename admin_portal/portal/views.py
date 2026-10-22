@@ -60,16 +60,16 @@ def _manager_only(user):
 
 
 def _can_manage_staff(user):
-    return _admin_only(user) or _manager_only(user)
+    return _admin_only(user)
 
 
 def _can_manage_configuration(user):
-    return _can_manage_staff(user)
+    return _admin_only(user)
 
 
 def _can_manage_operations(user):
     return user.is_superuser or StaffProfile.objects.filter(
-        user=user, role__in=["manager", "admin", "reception"], active=True
+        user=user, role="admin", active=True
     ).exists()
 
 
@@ -118,10 +118,24 @@ def manager_signup(request):
         with transaction.atomic():
             user = form.save()
             StaffProfile.objects.create(user=user, role="manager")
+            property_settings = PortalSettings.objects.first()
+            if property_settings is None:
+                PortalSettings.objects.create(
+                    property_name=form.cleaned_data["property_name"],
+                    property_location=form.cleaned_data["property_location"],
+                )
+            else:
+                property_settings.property_name = form.cleaned_data["property_name"]
+                property_settings.property_location = form.cleaned_data[
+                    "property_location"
+                ]
+                property_settings.save(
+                    update_fields=["property_name", "property_location", "updated_at"]
+                )
         login(request, user)
         messages.success(
             request,
-            "Manager account created. You can now set up staff and property details.",
+            "Manager account and property details created.",
         )
         return redirect("dashboard")
     return render(request, "manager_signup.html", {"form": form})
@@ -492,10 +506,9 @@ def room_edit(request, room_id):
 
 
 @login_required
-@user_passes_test(_can_manage_operations, login_url="dashboard")
 def room_qr(request, room_id):
     room = get_object_or_404(Room, pk=room_id)
-    if not _can_manage_configuration(request.user):
+    if not _admin_only(request.user):
         return HttpResponse("Only administrators can manage QR codes.", status=403)
     if request.method == "POST":
         device = room.ensure_ordering_device()
@@ -626,18 +639,10 @@ def staff_list(request):
 @login_required
 @user_passes_test(_can_manage_staff, login_url="dashboard")
 def staff_create(request):
-    allowed_roles = StaffProfile.ROLES
-    if _manager_only(request.user) and not request.user.is_superuser:
-        allowed_roles = [
-            choice for choice in StaffProfile.ROLES if choice[0] != "manager"
-        ]
-    elif not request.user.is_superuser:
-        allowed_roles = [
-            choice
-            for choice in StaffProfile.ROLES
-            if choice[0] not in {"manager", "admin"}
-        ]
-    form = StaffCreateForm(request.POST or None, allowed_roles=allowed_roles)
+    form = StaffCreateForm(
+        request.POST or None,
+        allowed_roles=StaffProfile.DEPARTMENT_STAFF_ROLES,
+    )
     if request.method == "POST" and form.is_valid():
         user = form.save()
         messages.success(request, f"Staff account {user.username} created.")
@@ -646,6 +651,26 @@ def staff_create(request):
         request,
         "portal/form.html",
         {"form": form, "title": "Add Staff", "cancel_url": "staff", **_base(request)},
+    )
+
+
+@login_required
+@user_passes_test(_manager_only, login_url="dashboard")
+def staff_admin_create(request):
+    form = StaffCreateForm(request.POST or None, fixed_role="admin")
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        messages.success(request, f"Administrator account {user.username} created.")
+        return redirect("dashboard")
+    return render(
+        request,
+        "portal/form.html",
+        {
+            "form": form,
+            "title": "Create Administrator Login",
+            "cancel_url": "staff",
+            **_base(request),
+        },
     )
 
 

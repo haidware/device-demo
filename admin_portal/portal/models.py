@@ -133,9 +133,15 @@ class ServiceOption(models.Model):
 
 
 class StaffProfile(models.Model):
+    DEPARTMENT_STAFF_ROLES = [
+        ("kitchen_staff", "Kitchen Staff"),
+        ("bar_staff", "Bar Staff"),
+        ("service_staff", "Service Staff"),
+    ]
     ROLES = [
         ("manager", "Manager / Director"),
         ("admin", "Administrator"),
+        *DEPARTMENT_STAFF_ROLES,
         ("reception", "Reception / Staff"),
         ("handler", "Order Handler"),
     ]
@@ -332,6 +338,7 @@ class PortalSettings(models.Model):
     SHIFT_CHOICES = SHIFT_CHOICES
 
     property_name = models.CharField(max_length=120, default="HAIDWARE Hospitality")
+    property_location = models.CharField(max_length=240, blank=True)
     currency = models.CharField(max_length=8, default="NGN")
     bank_name = models.CharField(max_length=120, blank=True)
     account_name = models.CharField(max_length=120, blank=True)

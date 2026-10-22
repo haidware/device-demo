@@ -80,9 +80,11 @@ python manage.py test
 Managers/directors can create the first portal login at
 `/admin/manager-signup/`. Manager signup is open to the public as requested;
 anyone who reaches that page can register with manager-level access. A manager
-can create administrator and staff logins from **Staff**. Administrators can
-manage kitchen/bar menus, services, devices, rooms, QR codes, and staff, but
-only managers can edit bank payout details in **Settings**. These are portal
+provides the hotel/lounge name and location during signup; these property
+details are saved in `PortalSettings` and returned to registered devices by the
+device session API. A manager can create the administrator login and edit
+property and bank details in **Settings**. Administrators manage kitchen/bar
+menus, services, devices, rooms, QR codes, staff, and orders. These are portal
 roles; no Django superuser is needed for day-to-day portal access.
 
 Menu photos are uploaded from a phone camera or image picker to Supabase

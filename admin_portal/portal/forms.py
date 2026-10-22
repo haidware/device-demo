@@ -108,12 +108,14 @@ class StaffCreateForm(forms.Form):
     first_name = forms.CharField(max_length=150, required=False)
     last_name = forms.CharField(max_length=150, required=False)
     password = forms.CharField(widget=forms.PasswordInput, min_length=12)
-    role = forms.ChoiceField(choices=StaffProfile.ROLES)
-    departments = forms.CharField(max_length=160, required=False)
+    role = forms.ChoiceField(choices=StaffProfile.DEPARTMENT_STAFF_ROLES)
     phone_number = forms.CharField(max_length=24)
 
-    def __init__(self, *args, allowed_roles=None, **kwargs):
+    def __init__(self, *args, allowed_roles=None, fixed_role=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fixed_role = fixed_role
+        if fixed_role is not None:
+            self.fields.pop("role")
         if allowed_roles is not None:
             self.fields["role"].choices = allowed_roles
 
@@ -144,6 +146,12 @@ class StaffCreateForm(forms.Form):
 
     @transaction.atomic
     def save(self):
+        role = self.fixed_role or self.cleaned_data["role"]
+        role_departments = {
+            "kitchen_staff": "Kitchen",
+            "bar_staff": "Bar",
+            "service_staff": "Services",
+        }
         user = User.objects.create_user(
             username=self.cleaned_data["username"],
             first_name=self.cleaned_data["first_name"],
@@ -152,8 +160,8 @@ class StaffCreateForm(forms.Form):
         )
         StaffProfile.objects.create(
             user=user,
-            role=self.cleaned_data["role"],
-            departments=self.cleaned_data["departments"],
+            role=role,
+            departments=role_departments.get(role, ""),
             phone_number=self.cleaned_data["phone_number"].strip(),
         )
         return user
@@ -164,6 +172,7 @@ class PortalSettingsForm(forms.ModelForm):
         model = PortalSettings
         fields = [
             "property_name",
+            "property_location",
             "currency",
             "bank_name",
             "account_name",
@@ -177,6 +186,14 @@ class ManagerSignupForm(UserCreationForm):
     email = forms.EmailField()
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
+    property_name = forms.CharField(
+        label="Hotel / lounge name",
+        max_length=120,
+    )
+    property_location = forms.CharField(
+        label="Hotel / lounge location",
+        max_length=240,
+    )
 
     class Meta:
         model = User

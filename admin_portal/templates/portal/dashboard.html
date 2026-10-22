@@ -2,7 +2,12 @@
 {% block title %}Dashboard – HAIDWARE{% endblock %}
 {% block content %}
 {% if notification_only %}
-<div class="page-heading"><div><p class="eyebrow">STAFF ACCESS</p><h1>Notifications only</h1><p class="muted">Your account is set up to receive shift notifications. Reception handles order and service-request updates; no action is required from staff here.</p></div></div>
+{% if can_manage_settings %}
+<div class="page-heading"><div><p class="eyebrow">MANAGER SETUP</p><h1>Set up your administrator</h1><p class="muted">Create the administrator login for day-to-day portal management, then enter the bank details guests will use for payment.</p></div></div>
+<div class="button-row"><a class="button primary" href="{% url 'staff_admin_add' %}">Create Administrator Login</a><a class="button subtle" href="{% url 'settings' %}">Enter Bank Details</a></div>
+{% else %}
+<div class="page-heading"><div><p class="eyebrow">STAFF ACCESS</p><h1>Notifications only</h1><p class="muted">Your account is set up to receive shift notifications. An administrator handles order and service-request updates; no action is required from staff here.</p></div></div>
+{% endif %}
 {% else %}
 <section class="stats-grid">
   <article class="stat-card"><strong>{{ orders_today }}</strong><span>Orders Today</span><span class="stat-icon" aria-hidden="true">▤</span></article>

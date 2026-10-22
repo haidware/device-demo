@@ -106,6 +106,13 @@ td a { font-weight: 650; }
 .button.subtle { border-color: var(--border); background: var(--panel-soft); color: var(--text); }
 .button.danger { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
 .button.full { width: 100%; }
+.availability-toggle { position: relative; width: 76px; height: 36px; display: inline-flex; align-items: center; padding: 3px; border: 1px solid #cbd5e1; border-radius: 999px; background: #e2e8f0; color: #475569; cursor: pointer; transition: background-color .18s ease, border-color .18s ease; }
+.availability-toggle:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.availability-toggle.is-available { justify-content: flex-end; border-color: #16a34a; background: #16c765; color: #08753a; }
+.availability-toggle.is-unavailable { justify-content: flex-start; }
+.availability-toggle-label { flex: 1; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.availability-toggle-thumb { position: absolute; left: 3px; width: 28px; height: 28px; border: 1px solid #d1d5db; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 24%); transition: transform .18s ease; }
+.availability-toggle.is-available .availability-toggle-thumb { transform: translateX(40px); }
 .filter-bar, .inline-form, .compact-form, .button-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .filter-bar { margin: 0 0 16px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .filter-bar.compact { margin: 0; padding: 0; border: 0; background: none; }

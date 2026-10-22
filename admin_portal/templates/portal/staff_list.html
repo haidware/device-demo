@@ -3,7 +3,10 @@
 {% block content %}
 <div class="page-heading">
   <div><p class="eyebrow">MANAGEMENT</p><h1>Staff</h1><p class="muted">Manage your team members, roles, and contact details.</p></div>
-  <a class="button primary" href="{% url 'staff_add' %}">Add Staff</a>
+  <div class="button-row">
+    <a class="button primary" href="{% url 'staff_add' %}">Add Staff</a>
+    {% if can_manage_settings %}<a class="button subtle" href="{% url 'staff_admin_add' %}">Create Administrator Login</a>{% endif %}
+  </div>
 </div>
 <section class="staff-overview" aria-label="Staff summary">
   <article class="staff-overview-card"><span>Total staff</span><strong>{{ staff_count }}</strong></article>

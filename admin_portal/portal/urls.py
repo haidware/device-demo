@@ -33,6 +33,7 @@ urlpatterns = [
     path("devices/<int:device_id>/edit/", views.device_edit, name="device_edit"),
     path("staff/", views.staff_list, name="staff"),
     path("staff/add/", views.staff_create, name="staff_add"),
+    path("staff/add-administrator/", views.staff_admin_create, name="staff_admin_add"),
     path("staff/<int:user_id>/toggle/", views.staff_toggle, name="staff_toggle"),
     path("staff-shifts/", views.staff_shifts, name="staff_shifts"),
     path("reports/", views.reports, name="reports"),
