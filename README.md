@@ -108,6 +108,17 @@ The bucket must allow public reads so guest menus and the Flutter device can
 display photos. Image writes are performed by Django using the private server
 key. Accepted image formats are JPEG, PNG, and WebP, up to 5 MB each.
 
+Application tables in Supabase's `public` schema are not intended for direct
+client access. Migration `0010` revokes schema, table, and sequence privileges
+from `PUBLIC`, `anon`, and `authenticated`, enables row-level security without
+client policies, and applies the privilege restrictions to tables created
+later by the migration role. Django continues to access the database through
+`DATABASE_URL` as the backend database owner; do not use an `anon` or
+`authenticated` connection for Django. The migration requires Supabase's
+`anon` and `authenticated` roles and does not change Supabase Storage bucket
+permissions. After deploying, verify the migration completed before treating
+the tables as restricted.
+
 The Render Docker build serves Flutter and Django from one origin. Its
 `API_BASE_URL` build argument defaults to
 `https://device-demo.onrender.com`; set it to the public service origin if the
