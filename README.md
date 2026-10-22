@@ -50,8 +50,9 @@ official WhatsApp provider and its credentials/templates.
 
 The Django admin portal is deployed in the same Render service as this Flutter
 app. The guest/device app remains at `/`, the admin dashboard is available at
-`/admin`, and room/table QR codes open the browser ordering flow at
-`/guest-order/`. Both ordering experiences use the portal's menu, device
+`/admin`, and room/table QR codes open the ordering homepage at `/?device_id=…`.
+Scanning a QR starts the same homepage flow as a device, with the room ID
+preselected and no manual device-ID entry. Both ordering experiences use the portal's menu, device
 sessions, payment settings, preparation estimates, and order API.
 Register devices from **Devices** to generate a device ID and enter its room or
 table number; an existing location is reused if the number is already set up.

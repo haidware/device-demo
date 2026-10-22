@@ -551,7 +551,10 @@ def device_list(request):
     return render(
         request,
         "portal/device_list.html",
-        {"devices": Device.objects.select_related("room"), **_base(request)},
+        {
+            "devices": Device.objects.filter(is_qr_device=False).select_related("room"),
+            **_base(request),
+        },
     )
 
 

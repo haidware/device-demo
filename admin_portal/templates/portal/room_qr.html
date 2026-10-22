@@ -6,14 +6,14 @@
   {% if device %}
   <p class="eyebrow">HAIDWARE HOSPITALITY</p>
   <h2>{{ room.identifier }}</h2>
-  <p class="muted">{{ room.get_room_type_display }} · Scan to view the menu and place your order.</p>
+  <p class="muted">{{ room.get_room_type_display }} · Assigned to {{ room.identifier }} · Scan to view the menu and place your order.</p>
   <img class="room-qr-image" src="{% url 'room_qr_image' room.pk %}" alt="QR code for {{ room.identifier }}">
   <p class="qr-instructions">Open your phone camera and scan to order. Guests get the same menu, checkout, payment message, and confirmation flow as the device, in a browser—no app installation required.</p>
   <p class="qr-link"><a href="{{ qr_url }}">{{ qr_url }}</a></p>
   {% else %}
   <p class="eyebrow">NO QR CODE YET</p>
   <h2>Generate a scan code for {{ room.identifier }}</h2>
-  <p class="muted">The portal assigns the ordering ID automatically. Guests who scan the code open the browser ordering experience linked to this room or table.</p>
+  <p class="muted">The portal creates a QR access code automatically for {{ room.identifier }}. Guests who scan it open the browser ordering experience for this room or table; no device sign-in ID needs to be assigned manually.</p>
   {% if not room.active %}<p class="message error">Activate this room or table before using its QR code.</p>{% elif can_manage_staff %}<form method="post">{% csrf_token %}<button class="button primary" type="submit">Generate QR Code</button></form>{% else %}<p class="muted">Ask an administrator to generate this QR code.</p>{% endif %}
   {% endif %}
   {% if device %}<div class="qr-actions no-print"><button class="button primary" type="button" onclick="window.print()">Print QR Code</button><a class="button subtle" href="{% url 'rooms' %}">Done</a></div>{% endif %}

@@ -39,7 +39,14 @@ class Room(models.Model):
     def active_qr_device(self):
         if not self.active:
             return None
-        return next((device for device in self.devices.all() if device.active), None)
+        return next(
+            (
+                device
+                for device in self.devices.all()
+                if device.active and device.is_qr_device
+            ),
+            None,
+        )
 
     def ensure_ordering_device(self):
         if not self.active:
@@ -51,6 +58,7 @@ class Room(models.Model):
             name=f"QR · {self.identifier}",
             device_id=generate_device_id(),
             room=self,
+            is_qr_device=True,
         )
 
 
@@ -60,6 +68,7 @@ class Device(models.Model):
     room = models.ForeignKey(
         Room, null=True, blank=True, on_delete=models.SET_NULL, related_name="devices"
     )
+    is_qr_device = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
     last_seen = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

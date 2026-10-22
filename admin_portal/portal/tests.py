@@ -395,6 +395,7 @@ class PortalFlowTests(TestCase):
         self.assertIsNotNone(device)
         self.assertRegex(device.device_id, r"^\d{10}$")
         self.assertEqual(device.room, room)
+        self.assertTrue(device.is_qr_device)
 
     def test_device_registration_generates_id_and_creates_room_number(self):
         self.client.force_login(self.admin)
@@ -819,14 +820,14 @@ class PortalFlowTests(TestCase):
 
         response = self.client.post(reverse("room_qr", args=[self.room.pk]))
         self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
-        device = Device.objects.get(room=self.room, active=True)
+        device = Device.objects.get(room=self.room, active=True, is_qr_device=True)
         self.assertNotEqual(device.device_id, "123456")
 
         qr_page = self.client.get(reverse("room_qr", args=[self.room.pk]))
         self.assertContains(qr_page, "confirmation flow as the device, in a browser")
         self.assertContains(
             qr_page,
-            f"http://testserver/guest-order/?device_id={device.device_id}",
+            f"http://testserver/?device_id={device.device_id}",
         )
         qr_image = self.client.get(reverse("room_qr_image", args=[self.room.pk]))
         self.assertEqual(qr_image.status_code, 200)
@@ -841,13 +842,29 @@ class PortalFlowTests(TestCase):
         self.assertEqual(session.status_code, 200)
         self.assertEqual(session.json()["room"], "101")
 
-    @override_settings(GUEST_ORDER_BASE_URL="http://192.168.0.127:8000/guest-order/")
+    @override_settings(GUEST_ORDER_BASE_URL="http://192.168.0.127:8000/")
     def test_qr_uses_configured_guest_order_base_url(self):
         self.client.force_login(self.admin)
+        response = self.client.post(reverse("room_qr", args=[self.room.pk]))
+        self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
+        qr_device = self.room.__class__.objects.get(pk=self.room.pk).active_qr_device
         response = self.client.get(reverse("room_qr", args=[self.room.pk]))
         self.assertContains(
             response,
-            f"http://192.168.0.127:8000/guest-order/?device_id={self.device.device_id}",
+            f"http://192.168.0.127:8000/?device_id={qr_device.device_id}",
+        )
+
+    @override_settings(GUEST_ORDER_BASE_URL="https://device-demo.onrender.com/admin/")
+    def test_qr_always_opens_ordering_homepage_even_with_admin_path_configured(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("room_qr", args=[self.room.pk]))
+        self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
+        qr_device = self.room.__class__.objects.get(pk=self.room.pk).active_qr_device
+        response = self.client.get(reverse("room_qr", args=[self.room.pk]))
+
+        self.assertContains(
+            response,
+            f"https://device-demo.onrender.com/?device_id={qr_device.device_id}",
         )
 
     def test_regenerating_room_qr_reuses_active_device(self):
@@ -855,7 +872,35 @@ class PortalFlowTests(TestCase):
         for _ in range(2):
             response = self.client.post(reverse("room_qr", args=[self.room.pk]))
             self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
-        self.assertEqual(Device.objects.filter(room=self.room, active=True).count(), 1)
+        self.assertEqual(
+            Device.objects.filter(
+                room=self.room, active=True, is_qr_device=True
+            ).count(),
+            1,
+        )
+
+    def test_room_qr_uses_separate_access_id_from_physical_device(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("room_qr", args=[self.room.pk]))
+        self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
+
+        qr_device = self.room.active_qr_device
+        self.assertIsNotNone(qr_device)
+        self.assertNotEqual(qr_device.pk, self.device.pk)
+        self.assertNotEqual(qr_device.device_id, self.device.device_id)
+        self.assertTrue(qr_device.is_qr_device)
+
+        device_list = self.client.get(reverse("devices"))
+        self.assertContains(device_list, self.device.device_id)
+        self.assertNotContains(device_list, qr_device.device_id)
+
+        session = self.client.post(
+            reverse("api_device_session"),
+            data=json.dumps({"device_id": qr_device.device_id}),
+            content_type="application/json",
+        )
+        self.assertEqual(session.status_code, 200)
+        self.assertEqual(session.json()["room"], self.room.identifier)
 
     def test_only_admin_can_generate_room_qr(self):
         reception = User.objects.create_user(username="reception", password="test")
@@ -864,7 +909,7 @@ class PortalFlowTests(TestCase):
         response = self.client.post(reverse("room_qr", args=[self.room.pk]))
         self.assertEqual(response.status_code, 403)
         self.assertFalse(
-            Device.objects.filter(room=self.room, name__startswith="QR").exists()
+            Device.objects.filter(room=self.room, is_qr_device=True).exists()
         )
 
     def test_unallowed_browser_origin_receives_no_cors_grant(self):
