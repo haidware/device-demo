@@ -18,6 +18,7 @@ from .models import (
     Order,
     OrderLine,
     PortalSettings,
+    PropertySignupCode,
     Room,
     ServiceOption,
     ServiceRequest,
@@ -37,6 +38,15 @@ class PortalFlowTests(TestCase):
         )
         self.admin = User.objects.create_superuser(
             username="admin", email="admin@example.test", password="SecurePass123!test"
+        )
+        self.platform_admin = self.admin
+        self.admin = User.objects.create_user(
+            username="property.admin",
+            email="property.admin@example.test",
+            password="Strong-Test-Admin-Passphrase-9281!",
+        )
+        StaffProfile.objects.create(
+            user=self.admin, property=self.property, role="admin"
         )
         self.room = Room.objects.create(property=self.property, identifier="101")
         self.device = Device.objects.create(
@@ -120,6 +130,10 @@ class PortalFlowTests(TestCase):
         self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
 
     def test_manager_signup_creates_manager_role_and_session(self):
+        self.client.force_login(self.platform_admin)
+        self.client.post(reverse("command_center_generate_id"))
+        signup_id = PropertySignupCode.objects.get().code
+        self.client.logout()
         response = self.client.post(
             reverse("manager_signup"),
             {
@@ -128,6 +142,7 @@ class PortalFlowTests(TestCase):
                 "last_name": "Manager",
                 "email": "manager@example.test",
                 "phone_number": "+234 801 234 5678",
+                "property_id": signup_id,
                 "property_name": "Harbor Lounge",
                 "property_location": "Victoria Island, Lagos",
                 "password1": "Unique-Manager-Passphrase-2841",
@@ -141,108 +156,109 @@ class PortalFlowTests(TestCase):
         property_settings = manager.staff_profile.property
         self.assertEqual(property_settings.property_name, "Harbor Lounge")
         self.assertEqual(property_settings.property_location, "Victoria Island, Lagos")
-        self.assertRegex(property_settings.property_id, r"^HDW-\d{6,}$")
+        self.assertEqual(property_settings.property_id, signup_id)
         self.assertEqual(manager.staff_profile.phone_number, "+234 801 234 5678")
         self.assertFalse(property_settings.subscription_confirmed)
+        signup_code = PropertySignupCode.objects.get()
+        self.assertEqual(signup_code.property, property_settings)
+        self.assertIsNotNone(signup_code.used_at)
         self.assertIn("_auth_user_id", self.client.session)
 
-    def test_command_center_lists_properties_and_manages_subscription_and_account(self):
-        manager_user = User.objects.create_user(
-            username="command.manager",
-            email="manager@command.test",
-            password="Strong-Command-Manager-Passphrase-2841",
-            first_name="Morgan",
-            last_name="Manager",
+    def test_manager_signup_requires_valid_unused_generated_id(self):
+        signup_id = PropertySignupCode.objects.create().code
+        payload = {
+            "username": "code.manager",
+            "first_name": "Code",
+            "last_name": "Manager",
+            "email": "code.manager@example.test",
+            "phone_number": "+234 801 234 5678",
+            "property_id": signup_id,
+            "property_name": "Code Hotel",
+            "property_location": "Lagos",
+            "password1": "Unique-Manager-Passphrase-2841",
+            "password2": "Unique-Manager-Passphrase-2841",
+        }
+        response = self.client.post(reverse("manager_signup"), payload)
+        self.assertRedirects(response, reverse("dashboard"))
+        property_record = User.objects.get(username="code.manager").staff_profile.property
+        self.assertEqual(property_record.property_id, signup_id)
+
+        self.client.logout()
+        payload.update(username="second.manager", email="second.manager@example.test")
+        reused_response = self.client.post(reverse("manager_signup"), payload)
+        self.assertEqual(reused_response.status_code, 200)
+        self.assertContains(reused_response, "already been used")
+        self.assertFalse(User.objects.filter(username="second.manager").exists())
+
+        payload.update(
+            username="invalid.manager",
+            email="invalid.manager@example.test",
+            property_id="HDW-0000000000",
         )
-        StaffProfile.objects.create(
-            user=manager_user,
-            property=self.property,
-            role="manager",
-            phone_number="+234 802 111 2222",
+        invalid_response = self.client.post(reverse("manager_signup"), payload)
+        self.assertEqual(invalid_response.status_code, 200)
+        self.assertContains(invalid_response, "invalid or has already been used")
+        self.assertFalse(User.objects.filter(username="invalid.manager").exists())
+
+        payload.update(
+            username="missing.manager",
+            email="missing.manager@example.test",
+            property_id="",
         )
+        missing_id_response = self.client.post(reverse("manager_signup"), payload)
+        self.assertEqual(missing_id_response.status_code, 200)
+        self.assertContains(missing_id_response, "This field is required.")
+        self.assertFalse(User.objects.filter(username="missing.manager").exists())
+
+    def test_command_center_only_generates_ids_and_lists_property_usage(self):
+        self.property.property_name = "Command Hotel"
+        self.property.is_active = False
+        self.property.save()
+        self.client.force_login(self.platform_admin)
+
+        response = self.client.get("/commandcenter")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.property.property_id)
+        self.assertContains(response, "Command Hotel")
+        self.assertContains(response, "Inactive")
+        self.assertNotContains(response, "Manager contact")
+        self.assertNotContains(response, "Confirm subscription")
+        self.assertNotContains(response, "Deactivate account")
+
+        create_response = self.client.post(reverse("command_center_generate_id"))
+        self.assertRedirects(create_response, reverse("command_center"))
+        signup_id = PropertySignupCode.objects.get(property__isnull=True).code
+        self.assertTrue(signup_id.startswith("HDW-"))
+        self.assertContains(self.client.get(reverse("command_center")), signup_id)
+
+    def test_platform_superuser_is_confined_to_command_center(self):
+        login_password = "Known-Platform-Login-Passphrase-2841!"
+        login_user = User.objects.create_superuser(
+            username="platform.login",
+            email="platform.login@example.test",
+            password=login_password,
+        )
+        response = self.client.post(
+            reverse("login"),
+            {
+                "username": login_user.username,
+                "password": login_password,
+                "next": reverse("dashboard"),
+            },
+        )
+        self.assertRedirects(response, reverse("command_center"))
+        self.assertRedirects(self.client.get(reverse("dashboard")), reverse("command_center"))
+        operations_response = self.client.get(reverse("orders"))
+        self.assertEqual(operations_response.status_code, 302)
+        self.assertTrue(operations_response.url.startswith(reverse("dashboard")))
+        self.assertRedirects(self.client.get("/django-admin/"), reverse("command_center"))
+        self.assertEqual(self.client.get(reverse("command_center")).status_code, 200)
+
+    def test_command_center_is_superuser_only(self):
         self.client.force_login(self.admin)
-
-        page = self.client.get("/commandcenter")
-
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, self.property.property_id)
-        self.assertContains(page, "manager@command.test")
-        self.assertContains(page, "+234 802 111 2222")
-        self.assertContains(page, "Properties onboarded")
-
-        confirm = self.client.post(
-            reverse("command_center_action", args=[self.property.pk]),
-            {"action": "confirm_subscription"},
-        )
-        self.assertRedirects(confirm, reverse("command_center"))
-        self.property.refresh_from_db()
-        self.assertTrue(self.property.subscription_confirmed)
-        self.assertIsNotNone(self.property.subscription_confirmed_at)
-
-        reset = self.client.post(
-            reverse("command_center_action", args=[self.property.pk]),
-            {"action": "revoke_subscription"},
-        )
-        self.assertRedirects(reset, reverse("command_center"))
-        self.property.refresh_from_db()
-        self.assertFalse(self.property.subscription_confirmed)
-        self.assertIsNone(self.property.subscription_confirmed_at)
-
-        deactivate = self.client.post(
-            reverse("command_center_action", args=[self.property.pk]),
-            {"action": "deactivate"},
-        )
-        self.assertRedirects(deactivate, reverse("command_center"))
-        self.property.refresh_from_db()
-        self.assertFalse(self.property.is_active)
-        self.assertTrue(Room.objects.filter(pk=self.room.pk).exists())
-        self.assertTrue(User.objects.filter(pk=manager_user.pk).exists())
-        self.assertEqual(
-            self.client.post(
-                reverse("api_device_session"),
-                data=json.dumps({"device_id": self.device.device_id}),
-                content_type="application/json",
-            ).status_code,
-            403,
-        )
-        self.client.force_login(manager_user)
-        self.assertEqual(
-            self.client.get(reverse("menu_list", args=["kitchen"])).status_code,
-            302,
-        )
-
-        self.client.force_login(self.admin)
-        reactivate = self.client.post(
-            reverse("command_center_action", args=[self.property.pk]),
-            {"action": "reactivate"},
-        )
-        self.assertRedirects(reactivate, reverse("command_center"))
-        self.property.refresh_from_db()
-        self.assertTrue(self.property.is_active)
-        self.assertEqual(
-            self.client.post(
-                reverse("api_device_session"),
-                data=json.dumps({"device_id": self.device.device_id}),
-                content_type="application/json",
-            ).status_code,
-            200,
-        )
-
-    def test_command_center_is_superuser_only_and_actions_require_post(self):
-        administrator = User.objects.create_user(
-            username="not.command.admin",
-            password="Strong-Portal-Admin-Passphrase-2841",
-        )
-        StaffProfile.objects.create(
-            user=administrator, property=self.property, role="admin"
-        )
-        self.client.force_login(administrator)
         response = self.client.get(reverse("command_center"))
         self.assertEqual(response.status_code, 302)
-        action_response = self.client.get(
-            reverse("command_center_action", args=[self.property.pk])
-        )
-        self.assertEqual(action_response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("dashboard")))
 
     def test_manager_can_create_admin_account_and_set_bank_details(self):
         manager = User.objects.create_user(
@@ -624,7 +640,7 @@ class PortalFlowTests(TestCase):
         self.assertContains(response, "Kitchen, Services")
         self.assertContains(response, "+2348012345678")
         self.assertContains(response, "Deactivate account")
-        self.assertContains(response, "<strong>1</strong>", html=True)
+        self.assertContains(response, "<strong>2</strong>", html=True)
 
     def test_admin_portal_pages_render(self):
         self.client.force_login(self.admin)
@@ -649,6 +665,18 @@ class PortalFlowTests(TestCase):
             ("staff_add", []),
         ]:
             with self.subTest(page=name, args=args):
+                if name == "settings":
+                    manager = User.objects.create_user(
+                        username="settings.manager",
+                        email="settings.manager@example.test",
+                        password="Unique-Manager-Passphrase-2841",
+                    )
+                    StaffProfile.objects.create(
+                        user=manager, property=self.property, role="manager"
+                    )
+                    self.client.force_login(manager)
+                else:
+                    self.client.force_login(self.admin)
                 response = self.client.get(reverse(name, args=args))
                 self.assertEqual(response.status_code, 200)
 

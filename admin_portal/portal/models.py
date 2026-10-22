@@ -398,3 +398,37 @@ class PortalSettings(models.Model):
         if not self.property_id:
             self.property_id = f"HDW-{self.pk:06d}"
             super().save(update_fields=["property_id"])
+
+
+def generate_property_signup_id():
+    while True:
+        signup_id = f"HDW-{secrets.randbelow(9_000_000_000) + 1_000_000_000}"
+        property_id_exists = PortalSettings.objects.filter(
+            property_id=signup_id
+        ).exists()
+        signup_code_exists = PropertySignupCode.objects.filter(
+            code=signup_id
+        ).exists()
+        if not property_id_exists and not signup_code_exists:
+            return signup_id
+
+
+class PropertySignupCode(models.Model):
+    code = models.CharField(max_length=24, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    property = models.OneToOneField(
+        PortalSettings,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="signup_code",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = generate_property_signup_id()
+        super().save(*args, **kwargs)

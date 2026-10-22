@@ -7,9 +7,10 @@ from qrcode.image.svg import SvgPathImage
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
-from django.db.models import DecimalField, ExpressionWrapper, F, Prefetch, Sum
+from django.db.models import DecimalField, ExpressionWrapper, F, Sum
 from django.http import HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -31,6 +32,7 @@ from .models import (
     Order,
     OrderLine,
     PortalSettings,
+    PropertySignupCode,
     Room,
     ServiceOption,
     ServiceRequest,
@@ -48,13 +50,13 @@ User = get_user_model()
 
 
 def _admin_only(user):
-    return user.is_superuser or StaffProfile.objects.filter(
+    return not user.is_superuser and StaffProfile.objects.filter(
         user=user, role="admin", active=True, property__is_active=True
     ).exists()
 
 
 def _manager_only(user):
-    return user.is_superuser or StaffProfile.objects.filter(
+    return not user.is_superuser and StaffProfile.objects.filter(
         user=user, role="manager", active=True, property__is_active=True
     ).exists()
 
@@ -69,7 +71,7 @@ def _can_manage_configuration(user):
 
 def _property_for_user(user):
     if user.is_superuser:
-        return PortalSettings.objects.order_by("pk").first()
+        return None
     profile = (
         StaffProfile.objects.filter(
             user=user, active=True, property__is_active=True
@@ -82,7 +84,7 @@ def _property_for_user(user):
 
 def _for_user_property(queryset, user):
     if user.is_superuser:
-        return queryset
+        return queryset.none()
     property_record = _property_for_user(user)
     if property_record is None:
         return queryset.none()
@@ -90,9 +92,16 @@ def _for_user_property(queryset, user):
 
 
 def _can_manage_operations(user):
-    return user.is_superuser or StaffProfile.objects.filter(
+    return not user.is_superuser and StaffProfile.objects.filter(
         user=user, role="admin", active=True, property__is_active=True
     ).exists()
+
+
+class PortalLoginView(LoginView):
+    def get_success_url(self):
+        if self.request.user.is_superuser:
+            return reverse("command_center")
+        return super().get_success_url()
 
 
 def _base(request):
@@ -137,12 +146,30 @@ def _dashboard_whatsapp_activity(user):
 
 def manager_signup(request):
     if request.user.is_authenticated:
-        return redirect("dashboard")
+        return redirect(
+            "command_center" if request.user.is_superuser else "dashboard"
+        )
     form = ManagerSignupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
+            signup_code = (
+                PropertySignupCode.objects.select_for_update()
+                .filter(
+                    code=form.cleaned_data["property_id"],
+                    used_at__isnull=True,
+                    property__isnull=True,
+                )
+                .first()
+            )
+            if signup_code is None:
+                form.add_error(
+                    "property_id",
+                    "This signup ID has already been used. Contact HAIDWARE for a new ID.",
+                )
+                return render(request, "manager_signup.html", {"form": form})
             user = form.save()
             property_settings = PortalSettings.objects.create(
+                property_id=signup_code.code,
                 property_name=form.cleaned_data["property_name"],
                 property_location=form.cleaned_data["property_location"],
             )
@@ -152,6 +179,9 @@ def manager_signup(request):
                 property=property_settings,
                 phone_number=form.cleaned_data["phone_number"],
             )
+            signup_code.property = property_settings
+            signup_code.used_at = timezone.now()
+            signup_code.save(update_fields=["property", "used_at"])
         login(request, user)
         messages.success(
             request,
@@ -183,6 +213,8 @@ def _revenue_for_orders(orders):
 
 @login_required
 def dashboard(request):
+    if request.user.is_superuser:
+        return redirect("command_center")
     if not _can_manage_operations(request.user):
         return render(
             request,
@@ -219,26 +251,15 @@ def dashboard(request):
 @login_required
 @user_passes_test(lambda user: user.is_superuser, login_url="dashboard")
 def command_center(request):
-    manager_profiles = StaffProfile.objects.filter(
-        role="manager"
-    ).select_related("user").order_by("user__first_name", "user__last_name")
-    properties = PortalSettings.objects.prefetch_related(
-        Prefetch(
-            "staff_profiles",
-            queryset=manager_profiles,
-            to_attr="command_center_managers",
-        )
-    ).order_by("-pk")
+    properties = PortalSettings.objects.order_by("-pk")
     return render(
         request,
         "portal/command_center.html",
         {
             "properties": properties,
-            "property_count": properties.count(),
-            "active_count": properties.filter(is_active=True).count(),
-            "confirmed_count": properties.filter(
-                subscription_confirmed=True
-            ).count(),
+            "signup_codes": PropertySignupCode.objects.filter(
+                property__isnull=True, used_at__isnull=True
+            ),
         },
     )
 
@@ -246,36 +267,9 @@ def command_center(request):
 @login_required
 @user_passes_test(lambda user: user.is_superuser, login_url="dashboard")
 @require_POST
-def command_center_action(request, property_id):
-    property_record = get_object_or_404(PortalSettings, pk=property_id)
-    action = request.POST.get("action")
-    if action == "confirm_subscription":
-        property_record.subscription_confirmed = True
-        property_record.subscription_confirmed_at = timezone.now()
-        property_record.save(
-            update_fields=["subscription_confirmed", "subscription_confirmed_at", "updated_at"]
-        )
-        messages.success(request, f"Subscription confirmed for {property_record.property_name}.")
-    elif action == "revoke_subscription":
-        property_record.subscription_confirmed = False
-        property_record.subscription_confirmed_at = None
-        property_record.save(
-            update_fields=["subscription_confirmed", "subscription_confirmed_at", "updated_at"]
-        )
-        messages.success(request, f"Subscription status reset for {property_record.property_name}.")
-    elif action == "deactivate":
-        property_record.is_active = False
-        property_record.save(update_fields=["is_active", "updated_at"])
-        messages.success(
-            request,
-            f"{property_record.property_name} was deactivated. Its records are retained.",
-        )
-    elif action == "reactivate":
-        property_record.is_active = True
-        property_record.save(update_fields=["is_active", "updated_at"])
-        messages.success(request, f"{property_record.property_name} was reactivated.")
-    else:
-        return HttpResponse("Choose a valid command-center action.", status=400)
+def command_center_generate_id(request):
+    PropertySignupCode.objects.create()
+    messages.success(request, "A new one-time signup ID has been generated.")
     return redirect("command_center")
 
 

@@ -5,12 +5,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}HAIDWARE Admin{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'portal/portal.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'portal/portal.css' %}?v=4">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="{% url 'dashboard' %}">
+      <a class="brand" href="{% if request.user.is_superuser %}{% url 'command_center' %}{% else %}{% url 'dashboard' %}{% endif %}">
         <span class="brand-mark">H</span>
         <span><strong>HAIDWARE</strong><small>Hospitality</small></span>
       </a>
@@ -18,7 +18,7 @@
         {% if request.user.is_superuser %}
         <a href="{% url 'command_center' %}"{% if request.resolver_match.url_name == "command_center" %} aria-current="page"{% endif %}>Command Center</a>
         {% endif %}
-        <a href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a>
+        {% if not request.user.is_superuser %}<a href="{% url 'dashboard' %}"{% if request.resolver_match.url_name == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a>{% endif %}
         {% if can_manage_operations %}
         <span class="nav-label">Operations</span>
         <a href="{% url 'orders' %}"{% if request.resolver_match.url_name == "orders" or request.resolver_match.url_name == "order_detail" %} aria-current="page"{% endif %}>Orders</a>
@@ -53,7 +53,7 @@
     </aside>
     <main class="main-content">
       <header class="topbar{% if request.resolver_match.url_name == 'dashboard' %} dashboard-topbar{% endif %}">
-        <span>{% if request.resolver_match.url_name == "dashboard" %}Dashboard{% else %}{{ portal_settings.property_name|default:"HAIDWARE Hospitality" }}{% endif %}</span>
+        <span>{% if request.user.is_superuser %}Command Center{% elif request.resolver_match.url_name == "dashboard" %}Dashboard{% else %}{{ portal_settings.property_name|default:"HAIDWARE Hospitality" }}{% endif %}</span>
         <span class="user-chip">{{ request.user.get_username }}</span>
       </header>
       {% if messages %}

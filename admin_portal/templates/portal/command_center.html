@@ -5,95 +5,72 @@
   <div>
     <p class="eyebrow">HAIDWARE PLATFORM</p>
     <h1>Command Center</h1>
-    <p class="muted">Review onboarded hotels and lounges, subscription status, and account contacts.</p>
+    <p class="muted">Generate one-time signup IDs and see which properties are active.</p>
   </div>
 </div>
 
-<section class="stats-grid command-center-stats" aria-label="Property overview">
-  <article class="stat-card"><strong>{{ property_count }}</strong><span>Properties onboarded</span></article>
-  <article class="stat-card"><strong>{{ active_count }}</strong><span>Active accounts</span></article>
-  <article class="stat-card"><strong>{{ confirmed_count }}</strong><span>Subscriptions confirmed</span></article>
+<section class="panel command-center-generate">
+  <div>
+    <h2>Issue a signup ID</h2>
+    <p class="muted">Share the generated one-time ID with the hotel or lounge manager. They must enter it during signup.</p>
+  </div>
+  <form method="post" action="{% url 'command_center_generate_id' %}">
+    {% csrf_token %}
+    <button class="button primary" type="submit">Generate signup ID</button>
+  </form>
 </section>
 
 <section class="panel">
   <div class="panel-heading">
-    <h2>Hotels &amp; lounges</h2>
+    <h2>Unused signup IDs</h2>
   </div>
   <div class="table-wrap">
     <table class="command-center-table">
       <thead>
         <tr>
-          <th>Property ID</th>
-          <th>Property</th>
-          <th>Manager contact</th>
-          <th>Subscription</th>
-          <th>Account</th>
-          <th>Actions</th>
+          <th>Signup ID</th>
+          <th>Generated</th>
         </tr>
+      </thead>
+      <tbody>
+        {% for signup_code in signup_codes %}
+        <tr>
+          <td><strong class="signup-id">{{ signup_code.code }}</strong></td>
+          <td>{{ signup_code.created_at|date:"M j, Y · P" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td class="empty-cell" colspan="2">No unused signup IDs. Generate one to onboard a manager.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>Onboarded hotels &amp; lounges</h2>
+  </div>
+  <div class="table-wrap">
+    <table class="command-center-table">
+      <thead>
+        <tr><th>Property ID</th><th>Hotel / lounge</th><th>Location</th><th>Usage</th></tr>
       </thead>
       <tbody>
         {% for property in properties %}
         <tr>
           <td><strong>{{ property.property_id }}</strong></td>
-          <td>
-            <strong>{{ property.property_name }}</strong>
-            <span class="subtext">{{ property.property_location|default:"Location not provided" }}</span>
-          </td>
-          <td>
-            {% for manager in property.command_center_managers %}
-              <strong>{{ manager.user.get_full_name|default:manager.user.username }}</strong>
-              <span class="subtext"><a href="mailto:{{ manager.user.email }}">{{ manager.user.email|default:"No email" }}</a></span>
-              <span class="subtext">{% if manager.phone_number %}<a href="tel:{{ manager.phone_number }}">{{ manager.phone_number }}</a>{% else %}No phone number{% endif %}</span>
-            {% empty %}
-              <span class="muted">No manager contact</span>
-            {% endfor %}
-          </td>
-          <td>
-            {% if property.subscription_confirmed %}
-              <span class="staff-status is-active">Confirmed</span>
-              {% if property.subscription_confirmed_at %}<span class="subtext">{{ property.subscription_confirmed_at|date:"M j, Y" }}</span>{% endif %}
-            {% else %}
-              <span class="staff-status is-inactive">Pending</span>
-            {% endif %}
-          </td>
+          <td>{{ property.property_name }}</td>
+          <td>{{ property.property_location|default:"—" }}</td>
           <td>
             {% if property.is_active %}
               <span class="staff-status is-active">Active</span>
             {% else %}
-              <span class="staff-status is-inactive">Deactivated</span>
-            {% endif %}
-          </td>
-          <td class="command-center-actions">
-            {% if property.subscription_confirmed %}
-            <form method="post" action="{% url 'command_center_action' property.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="revoke_subscription">
-              <button class="button subtle" type="submit">Reset subscription</button>
-            </form>
-            {% else %}
-            <form method="post" action="{% url 'command_center_action' property.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="confirm_subscription">
-              <button class="button primary" type="submit">Confirm subscription</button>
-            </form>
-            {% endif %}
-            {% if property.is_active %}
-            <form method="post" action="{% url 'command_center_action' property.pk %}" onsubmit="return confirm('Deactivate {{ property.property_name|escapejs }}? Its records will be retained, and its devices will stop working.');">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="deactivate">
-              <button class="button danger" type="submit">Deactivate account</button>
-            </form>
-            {% else %}
-            <form method="post" action="{% url 'command_center_action' property.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="reactivate">
-              <button class="button subtle" type="submit">Reactivate account</button>
-            </form>
+              <span class="staff-status is-inactive">Inactive</span>
             {% endif %}
           </td>
         </tr>
         {% empty %}
-        <tr><td class="empty-cell" colspan="6">No hotels or lounges have signed up yet.</td></tr>
+        <tr><td class="empty-cell" colspan="4">No hotels or lounges have signed up yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -17,6 +17,7 @@
     {% for field in form %}
       <label for="{{ field.id_for_label }}">{{ field.label }}</label>
       {{ field }}
+      {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
       {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
     {% endfor %}
     <button class="button primary full" type="submit">Create Manager Account</button>

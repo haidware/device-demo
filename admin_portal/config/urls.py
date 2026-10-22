@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
@@ -17,17 +16,20 @@ urlpatterns = [
     ),
     path(
         "admin/login/",
-        auth_views.LoginView.as_view(template_name="login.html"),
+        views.PortalLoginView.as_view(template_name="login.html"),
         name="login",
     ),
     path("admin/manager-signup/", views.manager_signup, name="manager_signup"),
     path("admin/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("django-admin/", admin.site.urls),
+    path(
+        "django-admin/",
+        RedirectView.as_view(pattern_name="command_center", permanent=False),
+    ),
     re_path(r"^commandcenter/?$", views.command_center, name="command_center"),
     path(
-        "commandcenter/<int:property_id>/action/",
-        views.command_center_action,
-        name="command_center_action",
+        "commandcenter/generate-id/",
+        views.command_center_generate_id,
+        name="command_center_generate_id",
     ),
     path("api/v1/", include("portal.api_urls")),
     path("guest-order/", views.guest_order, name="guest_order"),

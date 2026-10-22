@@ -9,6 +9,7 @@ from .models import (
     generate_device_id,
     MenuItem,
     PortalSettings,
+    PropertySignupCode,
     Room,
     ServiceOption,
     StaffProfile,
@@ -227,6 +228,11 @@ class PortalSettingsForm(forms.ModelForm):
 
 
 class ManagerSignupForm(UserCreationForm):
+    property_id = forms.CharField(
+        label="HAIDWARE signup ID",
+        max_length=24,
+        help_text="Enter the one-time ID provided by HAIDWARE.",
+    )
     email = forms.EmailField()
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
@@ -242,6 +248,16 @@ class ManagerSignupForm(UserCreationForm):
 
     def clean_phone_number(self):
         return _validated_phone_number(self.cleaned_data["phone_number"])
+
+    def clean_property_id(self):
+        signup_id = self.cleaned_data["property_id"].strip().upper()
+        if not PropertySignupCode.objects.filter(
+            code=signup_id, used_at__isnull=True, property__isnull=True
+        ).exists():
+            raise forms.ValidationError(
+                "This signup ID is invalid or has already been used. Contact HAIDWARE for an ID."
+            )
+        return signup_id
 
     class Meta:
         model = User

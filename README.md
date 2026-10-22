@@ -77,21 +77,16 @@ python manage.py check
 python manage.py test
 ```
 
-Managers/directors can create the first portal login at
-`/admin/manager-signup/`. Manager signup is open to the public as requested;
-anyone who reaches that page can register with manager-level access. A manager
-provides the hotel/lounge name and location during signup; these property
-details are saved in `PortalSettings` and returned to registered devices by the
-device session API. A manager can create the administrator login and edit
+Platform superusers can open `/commandcenter` to generate one-time signup IDs
+and view onboarded hotel/lounge names, locations, and whether each property is
+active or inactive. Superusers are restricted to this Command Center and do
+not have access to hotel operations dashboards. Managers/directors must provide
+an unused signup ID at `/admin/manager-signup/`; they also enter the
+hotel/lounge name and location, which are saved in `PortalSettings` and
+returned to registered devices by the device session API. A signup ID can
+only be used once. Managers can create the administrator login and edit
 property and bank details in **Settings**. Administrators manage kitchen/bar
-menus, services, devices, rooms, QR codes, staff, and orders. These are portal
-roles; no Django superuser is needed for day-to-day portal access.
-
-Platform superusers can open `/commandcenter` to review properties and manager
-contact details, confirm or reset subscription status, and deactivate or
-reactivate accounts. Every property receives a stable `HDW-` ID. Deactivation
-retains all property and activity records while blocking staff portal access
-and device API requests; it does not permanently erase data.
+menus, services, devices, rooms, QR codes, staff, and orders.
 For Render deployments without Shell access, set `SUPER_USER_LOGIN_USERNAME`
 and `SUPER_USER_LOGIN_KEY` in the service's Environment settings. The key is
 the platform superuser password: use a strong unique value and keep it private.
