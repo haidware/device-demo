@@ -23,6 +23,18 @@ class RoomForm(forms.ModelForm):
         fields = ["identifier", "room_type", "floor", "notes", "active"]
         labels = {"identifier": "Room / table number"}
 
+    def __init__(self, *args, property=None, **kwargs):
+        self.property = property
+        super().__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        room = super().save(commit=False)
+        room.property = self.property or room.property
+        if commit:
+            room.save()
+            self.save_m2m()
+        return room
+
 
 class DeviceForm(forms.ModelForm):
     device_id = forms.CharField(
@@ -40,7 +52,8 @@ class DeviceForm(forms.ModelForm):
         model = Device
         fields = ["name", "active"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, property=None, **kwargs):
+        self.property = property
         super().__init__(*args, **kwargs)
         if self.instance.pk:
             self.fields["device_id"].initial = self.instance.device_id
@@ -55,9 +68,15 @@ class DeviceForm(forms.ModelForm):
 
     def save(self, commit=True):
         device = super().save(commit=False)
-        room, _ = Room.objects.get_or_create(
-            identifier=self.cleaned_data["room_identifier"]
-        )
+        room = Room.objects.filter(
+            property=self.property, identifier=self.cleaned_data["room_identifier"]
+        ).first()
+        if room is None:
+            room = Room.objects.create(
+                property=self.property,
+                identifier=self.cleaned_data["room_identifier"],
+            )
+        device.property = self.property
         device.room = room
         if not device.pk:
             device.device_id = generate_device_id()
@@ -89,8 +108,13 @@ class MenuItemForm(forms.ModelForm):
             "available",
         ]
 
+    def __init__(self, *args, property=None, **kwargs):
+        self.property = property
+        super().__init__(*args, **kwargs)
+
     def save(self, commit=True):
         item = super().save(commit=False)
+        item.property = self.property or item.property
         if commit:
             item.save()
             self.save_m2m()
@@ -102,6 +126,18 @@ class ServiceOptionForm(forms.ModelForm):
         model = ServiceOption
         fields = ["name", "department", "description", "active"]
 
+    def __init__(self, *args, property=None, **kwargs):
+        self.property = property
+        super().__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        service = super().save(commit=False)
+        service.property = self.property or service.property
+        if commit:
+            service.save()
+            self.save_m2m()
+        return service
+
 
 class StaffCreateForm(forms.Form):
     username = forms.CharField(max_length=150)
@@ -111,9 +147,12 @@ class StaffCreateForm(forms.Form):
     role = forms.ChoiceField(choices=StaffProfile.DEPARTMENT_STAFF_ROLES)
     phone_number = forms.CharField(max_length=24)
 
-    def __init__(self, *args, allowed_roles=None, fixed_role=None, **kwargs):
+    def __init__(
+        self, *args, allowed_roles=None, fixed_role=None, property=None, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.fixed_role = fixed_role
+        self.property = property
         if fixed_role is not None:
             self.fields.pop("role")
         if allowed_roles is not None:
@@ -160,6 +199,7 @@ class StaffCreateForm(forms.Form):
         )
         StaffProfile.objects.create(
             user=user,
+            property=self.property,
             role=role,
             departments=role_departments.get(role, ""),
             phone_number=self.cleaned_data["phone_number"].strip(),

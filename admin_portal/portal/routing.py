@@ -1,6 +1,5 @@
 from .models import (
     OrderLine,
-    PortalSettings,
     ROUTING_DEPARTMENTS,
     ShiftAssignment,
     WhatsAppAttempt,
@@ -22,14 +21,20 @@ def _record_routing_attempts(*, order=None, service_request=None):
             service_department if service_department in {"kitchen", "bar"} else "services"
         }
 
-    setting = PortalSettings.objects.first()
-    shift = setting.active_shift if setting else "morning"
-    enabled = setting.whatsapp_enabled if setting else True
+    property_record = (
+        order.property if order is not None else service_request.property
+    )
+    shift = property_record.active_shift
+    enabled = property_record.whatsapp_enabled
     department_labels = dict(ROUTING_DEPARTMENTS)
     for department in sorted(departments):
         assignment = (
             ShiftAssignment.objects.select_related("staff__user")
-            .filter(shift=shift, department=department)
+            .filter(
+                property=property_record,
+                shift=shift,
+                department=department,
+            )
             .first()
         )
         staff = assignment.staff if assignment else None
@@ -52,6 +57,7 @@ def _record_routing_attempts(*, order=None, service_request=None):
             )
 
         WhatsAppAttempt.objects.create(
+            property=property_record,
             order=order,
             service_request=service_request,
             department=department,

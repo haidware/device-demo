@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -18,7 +18,6 @@ from .models import (
     MenuItem,
     Order,
     OrderLine,
-    PortalSettings,
     ServiceOption,
     ServiceRequest,
 )
@@ -42,7 +41,7 @@ def _device_from_id(device_id):
     if not isinstance(device_id, str) or not device_id.isdigit():
         return None
     return (
-        Device.objects.select_related("room")
+        Device.objects.select_related("room", "property")
         .filter(device_id=device_id, active=True)
         .filter(Q(room__isnull=True) | Q(room__active=True))
         .first()
@@ -53,7 +52,13 @@ def _device_error():
     return JsonResponse({"error": "Device ID is invalid or inactive."}, status=403)
 
 
-def _menu_item_payload(request, item):
+def _menu_item_payload(request, item, device):
+    image_url = None
+    if item.image_url:
+        image_url = request.build_absolute_uri(
+            f"{reverse('api_menu_image', args=[item.pk])}?"
+            f"{urlencode({'device_id': device.device_id})}"
+        )
     return {
         "id": item.pk,
         "name": item.name,
@@ -64,11 +69,7 @@ def _menu_item_payload(request, item):
         "preparation_minutes": item.preparation_minutes,
         "estimated_minutes": item.preparation_minutes,
         "available": item.available,
-        "image_url": (
-            request.build_absolute_uri(reverse("api_menu_image", args=[item.pk]))
-            if item.image_url
-            else None
-        ),
+        "image_url": image_url,
     }
 
 
@@ -85,20 +86,20 @@ def device_session(request):
         return _device_error()
     device.last_seen = timezone.now()
     device.save(update_fields=["last_seen"])
-    settings = PortalSettings.objects.first()
+    settings = device.property
     return JsonResponse(
         {
             "device_id": device.device_id,
             "device_name": device.name,
             "room": device.room.identifier if device.room else None,
             "property": {
-                "name": settings.property_name if settings else "",
-                "location": settings.property_location if settings else "",
+                "name": settings.property_name,
+                "location": settings.property_location,
             },
             "payment_details": {
-                "bank_name": settings.bank_name if settings else "",
-                "account_name": settings.account_name if settings else "",
-                "account_number": settings.account_number if settings else "",
+                "bank_name": settings.bank_name,
+                "account_name": settings.account_name,
+                "account_number": settings.account_number,
             },
         }
     )
@@ -114,13 +115,22 @@ def device_menu(request):
         return _device_error()
     device.last_seen = timezone.now()
     device.save(update_fields=["last_seen"])
-    items = MenuItem.objects.filter(available=True).order_by("department", "category", "name")
-    return JsonResponse({"items": [_menu_item_payload(request, item) for item in items]})
+    items = MenuItem.objects.filter(
+        property=device.property, available=True
+    ).order_by("department", "category", "name")
+    return JsonResponse(
+        {"items": [_menu_item_payload(request, item, device) for item in items]}
+    )
 
 
 @require_http_methods(["GET"])
 def menu_image(request, item_id):
-    item = MenuItem.objects.filter(available=True, pk=item_id).only("image_url").first()
+    device = _device_from_id(request.GET.get("device_id", ""))
+    if not device:
+        return _device_error()
+    item = MenuItem.objects.filter(
+        property=device.property, available=True, pk=item_id
+    ).only("image_url").first()
     if item is None or not item.image_url:
         return HttpResponse("Menu image not found.", status=404)
 
@@ -174,9 +184,9 @@ def device_services(request):
     device = _device_from_id(request.headers.get("X-Device-ID", ""))
     if not device:
         return _device_error()
-    services = ServiceOption.objects.filter(active=True).order_by(
-        "department", "name"
-    )
+    services = ServiceOption.objects.filter(
+        property=device.property, active=True
+    ).order_by("department", "name")
     return JsonResponse(
         {
             "services": [
@@ -227,7 +237,11 @@ def create_order(request):
         if quantities[item_id] > 50:
             return JsonResponse({"error": "A maximum of 50 units per menu item is allowed."}, status=400)
 
-    items = list(MenuItem.objects.filter(pk__in=quantities, available=True))
+    items = list(
+        MenuItem.objects.filter(
+            property=device.property, pk__in=quantities, available=True
+        )
+    )
     if len(items) != len(quantities):
         return JsonResponse({"error": "One or more items are unavailable."}, status=400)
 
@@ -256,6 +270,7 @@ def create_order(request):
 
     with transaction.atomic():
         order = Order.objects.create(
+            property=device.property,
             device=device,
             sender_name=sender_name.strip()[:120],
             payment_status="review",
@@ -328,10 +343,13 @@ def create_service_request(request):
     details = data.get("details", "")
     if not isinstance(details, str):
         return JsonResponse({"error": "Request details must be text."}, status=400)
-    service = ServiceOption.objects.filter(pk=service_id, active=True).first()
+    service = ServiceOption.objects.filter(
+        property=device.property, pk=service_id, active=True
+    ).first()
     if service_id and not service:
         return JsonResponse({"error": "Service is unavailable."}, status=400)
     request_record = ServiceRequest.objects.create(
+        property=device.property,
         device=device,
         room_identifier=device.room.identifier if device.room else "",
         service=service,

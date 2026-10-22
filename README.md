@@ -87,6 +87,13 @@ property and bank details in **Settings**. Administrators manage kitchen/bar
 menus, services, devices, rooms, QR codes, staff, and orders. These are portal
 roles; no Django superuser is needed for day-to-day portal access.
 
+Each manager signup creates a separate property record in the shared database.
+Rooms, devices, menu items, services, staff, orders, requests, shift
+assignments, and notification activity are scoped to that property. Device APIs
+derive the property from the registered device ID; they do not accept a
+client-supplied property identifier. Existing records are assigned to the
+pre-existing property when the tenant-isolation migration runs.
+
 Menu photos are uploaded from a phone camera or image picker to Supabase
 Storage. Create a **public** bucket named `menu-images` (or set
 `SUPABASE_STORAGE_BUCKET` to the bucket name) and configure these Render

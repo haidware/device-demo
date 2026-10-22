@@ -1,3 +1,4 @@
+import builtins
 import secrets
 import uuid
 
@@ -22,7 +23,10 @@ class Room(models.Model):
         ("area", "Area"),
     ]
 
-    identifier = models.CharField(max_length=80, unique=True)
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="rooms"
+    )
+    identifier = models.CharField(max_length=80)
     room_type = models.CharField(max_length=12, choices=ROOM_TYPES, default="room")
     floor = models.CharField(max_length=80, blank=True)
     notes = models.TextField(blank=True)
@@ -31,11 +35,16 @@ class Room(models.Model):
 
     class Meta:
         ordering = ["identifier"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["property", "identifier"], name="unique_property_room_identifier"
+            )
+        ]
 
     def __str__(self):
         return self.identifier
 
-    @property
+    @builtins.property
     def active_qr_device(self):
         if not self.active:
             return None
@@ -57,12 +66,16 @@ class Room(models.Model):
         return Device.objects.create(
             name=f"QR · {self.identifier}",
             device_id=generate_device_id(),
+            property=self.property,
             room=self,
             is_qr_device=True,
         )
 
 
 class Device(models.Model):
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="devices"
+    )
     name = models.CharField(max_length=100)
     device_id = models.CharField(max_length=12, unique=True)
     room = models.ForeignKey(
@@ -83,6 +96,9 @@ class Device(models.Model):
 class MenuItem(models.Model):
     DEPARTMENTS = [("kitchen", "Kitchen"), ("bar", "Bar")]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="menu_items"
+    )
     name = models.CharField(max_length=120)
     department = models.CharField(max_length=12, choices=DEPARTMENTS)
     category = models.CharField(max_length=80)
@@ -120,6 +136,9 @@ class ServiceOption(models.Model):
         ("other", "Other"),
     ]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="service_options"
+    )
     name = models.CharField(max_length=120)
     department = models.CharField(max_length=20, choices=DEPARTMENTS)
     description = models.TextField(blank=True)
@@ -146,6 +165,9 @@ class StaffProfile(models.Model):
         ("handler", "Order Handler"),
     ]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="staff_profiles"
+    )
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="staff_profile"
     )
@@ -171,6 +193,9 @@ ROUTING_DEPARTMENTS = [
 
 
 class ShiftAssignment(models.Model):
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="shift_assignments"
+    )
     shift = models.CharField(max_length=12, choices=SHIFT_CHOICES)
     department = models.CharField(max_length=12, choices=ROUTING_DEPARTMENTS)
     staff = models.ForeignKey(
@@ -185,7 +210,8 @@ class ShiftAssignment(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["shift", "department"], name="unique_shift_department"
+                fields=["property", "shift", "department"],
+                name="unique_property_shift_department",
             )
         ]
 
@@ -209,6 +235,9 @@ class Order(models.Model):
         ("rejected", "Rejected"),
     ]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="orders"
+    )
     order_number = models.CharField(max_length=24, unique=True, editable=False)
     device = models.ForeignKey(
         Device, on_delete=models.PROTECT, related_name="orders"
@@ -243,15 +272,15 @@ class Order(models.Model):
             self.room_identifier = self.device.room.identifier
         super().save(*args, **kwargs)
 
-    @property
+    @builtins.property
     def subtotal(self):
         return sum((line.total for line in self.lines.all()), start=0)
 
-    @property
+    @builtins.property
     def total(self):
         return self.subtotal + self.service_charge
 
-    @property
+    @builtins.property
     def estimated_minutes(self):
         return max((line.preparation_minutes for line in self.lines.all()), default=0)
 
@@ -269,7 +298,7 @@ class OrderLine(models.Model):
     quantity = models.PositiveSmallIntegerField()
     preparation_minutes = models.PositiveSmallIntegerField(default=25)
 
-    @property
+    @builtins.property
     def total(self):
         return self.unit_price * self.quantity
 
@@ -283,6 +312,9 @@ class ServiceRequest(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="service_requests"
+    )
     request_number = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     device = models.ForeignKey(
         Device, on_delete=models.PROTECT, related_name="service_requests"
@@ -307,6 +339,9 @@ class WhatsAppAttempt(models.Model):
         ("disabled", "WhatsApp routing disabled"),
     ]
 
+    property = models.ForeignKey(
+        "PortalSettings", on_delete=models.CASCADE, related_name="whatsapp_attempts"
+    )
     order = models.ForeignKey(
         Order, null=True, blank=True, on_delete=models.CASCADE, related_name="notifications"
     )

@@ -67,6 +67,24 @@ def _can_manage_configuration(user):
     return _admin_only(user)
 
 
+def _property_for_user(user):
+    if user.is_superuser:
+        return PortalSettings.objects.order_by("pk").first()
+    profile = StaffProfile.objects.filter(user=user, active=True).select_related(
+        "property"
+    ).first()
+    return profile.property if profile else None
+
+
+def _for_user_property(queryset, user):
+    if user.is_superuser:
+        return queryset
+    property_record = _property_for_user(user)
+    if property_record is None:
+        return queryset.none()
+    return queryset.filter(property=property_record)
+
+
 def _can_manage_operations(user):
     return user.is_superuser or StaffProfile.objects.filter(
         user=user, role="admin", active=True
@@ -74,8 +92,9 @@ def _can_manage_operations(user):
 
 
 def _base(request):
+    property_record = _property_for_user(request.user)
     return {
-        "portal_settings": PortalSettings.objects.first(),
+        "portal_settings": property_record,
         "can_manage_operations": _can_manage_operations(request.user),
         "can_manage_configuration": _can_manage_configuration(request.user),
         "can_manage_staff": _can_manage_staff(request.user),
@@ -83,9 +102,11 @@ def _base(request):
     }
 
 
-def _dashboard_whatsapp_activity():
+def _dashboard_whatsapp_activity(user):
     attempts = (
-        WhatsAppAttempt.objects.filter(order__isnull=False)
+        _for_user_property(
+            WhatsAppAttempt.objects.filter(order__isnull=False), user
+        )
         .select_related("order", "order__device", "staff__user")
         .prefetch_related("order__lines__menu_item")[:15]
     )
@@ -117,21 +138,13 @@ def manager_signup(request):
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             user = form.save()
-            StaffProfile.objects.create(user=user, role="manager")
-            property_settings = PortalSettings.objects.first()
-            if property_settings is None:
-                PortalSettings.objects.create(
-                    property_name=form.cleaned_data["property_name"],
-                    property_location=form.cleaned_data["property_location"],
-                )
-            else:
-                property_settings.property_name = form.cleaned_data["property_name"]
-                property_settings.property_location = form.cleaned_data[
-                    "property_location"
-                ]
-                property_settings.save(
-                    update_fields=["property_name", "property_location", "updated_at"]
-                )
+            property_settings = PortalSettings.objects.create(
+                property_name=form.cleaned_data["property_name"],
+                property_location=form.cleaned_data["property_location"],
+            )
+            StaffProfile.objects.create(
+                user=user, role="manager", property=property_settings
+            )
         login(request, user)
         messages.success(
             request,
@@ -173,21 +186,24 @@ def dashboard(request):
             },
         )
     today = timezone.localdate()
-    orders = Order.objects.filter(created_at__date=today)
+    orders = _for_user_property(
+        Order.objects.filter(created_at__date=today), request.user
+    )
+    service_requests = _for_user_property(ServiceRequest.objects.all(), request.user)
     context = {
         "orders_today": orders.count(),
         "revenue_today": _revenue_for_orders(orders),
-        "service_requests": ServiceRequest.objects.exclude(
+        "service_requests": service_requests.exclude(
             status__in=["completed", "cancelled"]
         ).count(),
-        "awaiting_payment": Order.objects.filter(payment_status="review").count(),
-        "active_orders": Order.objects.exclude(
+        "awaiting_payment": orders.filter(payment_status="review").count(),
+        "active_orders": _for_user_property(Order.objects.all(), request.user).exclude(
             status__in=["completed", "cancelled"]
         ).select_related("device")[:8],
-        "active_requests": ServiceRequest.objects.exclude(
+        "active_requests": service_requests.exclude(
             status__in=["completed", "cancelled"]
         ).select_related("device", "service")[:8],
-        "whatsapp_activity": _dashboard_whatsapp_activity(),
+        "whatsapp_activity": _dashboard_whatsapp_activity(request.user),
         **_base(request),
     }
     return render(request, "portal/dashboard.html", context)
@@ -199,14 +215,17 @@ def dashboard_activity(request):
     return render(
         request,
         "portal/partials/dashboard_activity.html",
-        {"whatsapp_activity": _dashboard_whatsapp_activity()},
+        {"whatsapp_activity": _dashboard_whatsapp_activity(request.user)},
     )
 
 
 @login_required
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def order_list(request):
-    orders = Order.objects.select_related("device").prefetch_related("lines")
+    orders = _for_user_property(
+        Order.objects.select_related("device").prefetch_related("lines"),
+        request.user,
+    )
     status = request.GET.get("status", "")
     department = request.GET.get("department", "")
     if status:
@@ -230,8 +249,11 @@ def order_list(request):
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def order_detail(request, order_id):
     order = get_object_or_404(
-        Order.objects.select_related("device", "payment_confirmed_by").prefetch_related(
-            "lines"
+        _for_user_property(
+            Order.objects.select_related(
+                "device", "payment_confirmed_by"
+            ).prefetch_related("lines"),
+            request.user,
         ),
         pk=order_id,
     )
@@ -244,7 +266,9 @@ def order_detail(request, order_id):
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 @require_POST
 def update_order(request, order_id):
-    order = get_object_or_404(Order, pk=order_id)
+    order = get_object_or_404(
+        _for_user_property(Order.objects.all(), request.user), pk=order_id
+    )
     action = request.POST.get("action")
     if action == "confirm_payment":
         if order.payment_status != "review":
@@ -285,7 +309,10 @@ def update_order(request, order_id):
 @login_required
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def payment_list(request):
-    orders = Order.objects.select_related("device").prefetch_related("lines")
+    orders = _for_user_property(
+        Order.objects.select_related("device").prefetch_related("lines"),
+        request.user,
+    )
     payment_status = request.GET.get("status", "")
     if payment_status in dict(Order.PAYMENT_STATUSES):
         orders = orders.filter(payment_status=payment_status)
@@ -304,7 +331,9 @@ def payment_list(request):
 @login_required
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def service_request_list(request):
-    requests = ServiceRequest.objects.select_related("device", "service")
+    requests = _for_user_property(
+        ServiceRequest.objects.select_related("device", "service"), request.user
+    )
     return render(
         request,
         "portal/service_requests.html",
@@ -316,7 +345,9 @@ def service_request_list(request):
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 @require_POST
 def update_service_request(request, request_id):
-    service_request = get_object_or_404(ServiceRequest, pk=request_id)
+    service_request = get_object_or_404(
+        _for_user_property(ServiceRequest.objects.all(), request.user), pk=request_id
+    )
     status = request.POST.get("status")
     if status not in dict(ServiceRequest.STATUSES):
         messages.error(request, "Choose a valid request status.")
@@ -330,12 +361,18 @@ def update_service_request(request, request_id):
 @login_required
 @user_passes_test(_can_manage_operations, login_url="dashboard")
 def handler_view(request):
-    orders = Order.objects.exclude(status__in=["completed", "cancelled"]).prefetch_related(
-        "lines"
+    orders = _for_user_property(
+        Order.objects.exclude(status__in=["completed", "cancelled"]).prefetch_related(
+            "lines"
+        ),
+        request.user,
     )
-    requests = ServiceRequest.objects.exclude(
-        status__in=["completed", "cancelled"]
-    ).select_related("service", "device")
+    requests = _for_user_property(
+        ServiceRequest.objects.exclude(
+            status__in=["completed", "cancelled"]
+        ).select_related("service", "device"),
+        request.user,
+    )
     return render(
         request,
         "portal/handler.html",
@@ -348,7 +385,9 @@ def handler_view(request):
 def menu_list(request, department):
     if department not in {"kitchen", "bar"}:
         return redirect("menu_list", department="kitchen")
-    items = MenuItem.objects.filter(department=department)
+    items = _for_user_property(
+        MenuItem.objects.filter(department=department), request.user
+    )
     return render(
         request,
         "portal/menu_list.html",
@@ -359,8 +398,16 @@ def menu_list(request, department):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def menu_create(request):
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding menu items.", status=403)
     initial = {"department": request.GET.get("department", "kitchen")}
-    form = MenuItemForm(request.POST or None, request.FILES or None, initial=initial)
+    form = MenuItemForm(
+        request.POST or None,
+        request.FILES or None,
+        initial=initial,
+        property=property_record,
+    )
     if request.method == "POST" and form.is_valid():
         item = form.save(commit=False)
         try:
@@ -382,8 +429,15 @@ def menu_create(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def menu_edit(request, item_id):
-    item = get_object_or_404(MenuItem, pk=item_id)
-    form = MenuItemForm(request.POST or None, request.FILES or None, instance=item)
+    item = get_object_or_404(
+        _for_user_property(MenuItem.objects.all(), request.user), pk=item_id
+    )
+    form = MenuItemForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=item,
+        property=item.property,
+    )
     if request.method == "POST" and form.is_valid():
         item = form.save(commit=False)
         try:
@@ -412,7 +466,9 @@ def menu_edit(request, item_id):
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 @require_POST
 def menu_toggle(request, item_id):
-    item = get_object_or_404(MenuItem, pk=item_id)
+    item = get_object_or_404(
+        _for_user_property(MenuItem.objects.all(), request.user), pk=item_id
+    )
     item.available = not item.available
     item.save(update_fields=["available"])
     messages.success(request, f"{item.name} availability updated.")
@@ -422,8 +478,13 @@ def menu_toggle(request, item_id):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def services_list(request):
-    options = ServiceOption.objects.all()
-    form = ServiceOptionForm(request.POST or None)
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding services.", status=403)
+    options = _for_user_property(ServiceOption.objects.all(), request.user)
+    form = ServiceOptionForm(
+        request.POST or None, property=property_record
+    )
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Service option added.")
@@ -438,8 +499,12 @@ def services_list(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def service_edit(request, service_id):
-    service = get_object_or_404(ServiceOption, pk=service_id)
-    form = ServiceOptionForm(request.POST or None, instance=service)
+    service = get_object_or_404(
+        _for_user_property(ServiceOption.objects.all(), request.user), pk=service_id
+    )
+    form = ServiceOptionForm(
+        request.POST or None, instance=service, property=service.property
+    )
     if request.method == "POST" and form.is_valid():
         service = form.save()
         messages.success(request, f"{service.name} updated.")
@@ -455,7 +520,9 @@ def service_edit(request, service_id):
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 @require_POST
 def service_toggle(request, service_id):
-    service = get_object_or_404(ServiceOption, pk=service_id)
+    service = get_object_or_404(
+        _for_user_property(ServiceOption.objects.all(), request.user), pk=service_id
+    )
     service.active = not service.active
     service.save(update_fields=["active"])
     messages.success(request, f"{service.name} availability updated.")
@@ -468,14 +535,22 @@ def room_list(request):
     return render(
         request,
         "portal/room_list.html",
-        {"rooms": Room.objects.prefetch_related("devices"), **_base(request)},
+        {
+            "rooms": _for_user_property(
+                Room.objects.prefetch_related("devices"), request.user
+            ),
+            **_base(request),
+        },
     )
 
 
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_create(request):
-    form = RoomForm(request.POST or None)
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding rooms.", status=403)
+    form = RoomForm(request.POST or None, property=property_record)
     if request.method == "POST" and form.is_valid():
         room = form.save()
         room.ensure_ordering_device()
@@ -491,8 +566,10 @@ def room_create(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_edit(request, room_id):
-    room = get_object_or_404(Room, pk=room_id)
-    form = RoomForm(request.POST or None, instance=room)
+    room = get_object_or_404(
+        _for_user_property(Room.objects.all(), request.user), pk=room_id
+    )
+    form = RoomForm(request.POST or None, instance=room, property=room.property)
     if request.method == "POST" and form.is_valid():
         room = form.save()
         room.ensure_ordering_device()
@@ -507,7 +584,9 @@ def room_edit(request, room_id):
 
 @login_required
 def room_qr(request, room_id):
-    room = get_object_or_404(Room, pk=room_id)
+    room = get_object_or_404(
+        _for_user_property(Room.objects.all(), request.user), pk=room_id
+    )
     if not _admin_only(request.user):
         return HttpResponse("Only administrators can manage QR codes.", status=403)
     if request.method == "POST":
@@ -538,7 +617,9 @@ def room_qr(request, room_id):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def room_qr_image(request, room_id):
-    room = get_object_or_404(Room, pk=room_id)
+    room = get_object_or_404(
+        _for_user_property(Room.objects.all(), request.user), pk=room_id
+    )
     device = room.active_qr_device
     if device is None:
         return HttpResponse(
@@ -576,7 +657,10 @@ def device_list(request):
         request,
         "portal/device_list.html",
         {
-            "devices": Device.objects.filter(is_qr_device=False).select_related("room"),
+            "devices": _for_user_property(
+                Device.objects.filter(is_qr_device=False).select_related("room"),
+                request.user,
+            ),
             **_base(request),
         },
     )
@@ -585,7 +669,10 @@ def device_list(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def device_create(request):
-    form = DeviceForm(request.POST or None)
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding devices.", status=403)
+    form = DeviceForm(request.POST or None, property=property_record)
     if request.method == "POST" and form.is_valid():
         device = form.save()
         messages.success(
@@ -603,8 +690,12 @@ def device_create(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def device_edit(request, device_id):
-    device = get_object_or_404(Device, pk=device_id)
-    form = DeviceForm(request.POST or None, instance=device)
+    device = get_object_or_404(
+        _for_user_property(Device.objects.all(), request.user), pk=device_id
+    )
+    form = DeviceForm(
+        request.POST or None, instance=device, property=device.property
+    )
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Device updated.")
@@ -622,6 +713,8 @@ def staff_list(request):
     staff = User.objects.filter(
         is_superuser=False, staff_profile__isnull=False
     ).select_related("staff_profile").order_by("first_name", "last_name", "username")
+    if not request.user.is_superuser:
+        staff = staff.filter(staff_profile__property=_property_for_user(request.user))
     return render(
         request,
         "portal/staff_list.html",
@@ -639,9 +732,13 @@ def staff_list(request):
 @login_required
 @user_passes_test(_can_manage_staff, login_url="dashboard")
 def staff_create(request):
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding staff.", status=403)
     form = StaffCreateForm(
         request.POST or None,
         allowed_roles=StaffProfile.DEPARTMENT_STAFF_ROLES,
+        property=property_record,
     )
     if request.method == "POST" and form.is_valid():
         user = form.save()
@@ -657,7 +754,14 @@ def staff_create(request):
 @login_required
 @user_passes_test(_manager_only, login_url="dashboard")
 def staff_admin_create(request):
-    form = StaffCreateForm(request.POST or None, fixed_role="admin")
+    property_record = _property_for_user(request.user)
+    if property_record is None:
+        return HttpResponse("Create property settings before adding staff.", status=403)
+    form = StaffCreateForm(
+        request.POST or None,
+        fixed_role="admin",
+        property=property_record,
+    )
     if request.method == "POST" and form.is_valid():
         user = form.save()
         messages.success(request, f"Administrator account {user.username} created.")
@@ -678,7 +782,10 @@ def staff_admin_create(request):
 @user_passes_test(_can_manage_staff, login_url="dashboard")
 @require_POST
 def staff_toggle(request, user_id):
-    user = get_object_or_404(User, pk=user_id, is_superuser=False)
+    users = User.objects.filter(is_superuser=False, staff_profile__isnull=False)
+    if not request.user.is_superuser:
+        users = users.filter(staff_profile__property=_property_for_user(request.user))
+    user = get_object_or_404(users, pk=user_id)
     target_profile = StaffProfile.objects.filter(user=user).first()
     if (
         target_profile
@@ -692,9 +799,8 @@ def staff_toggle(request, user_id):
         )
     user.is_active = not user.is_active
     user.save(update_fields=["is_active"])
-    profile, _ = StaffProfile.objects.get_or_create(user=user)
-    profile.active = user.is_active
-    profile.save(update_fields=["active"])
+    target_profile.active = user.is_active
+    target_profile.save(update_fields=["active"])
     messages.success(request, f"{user.username} access updated.")
     return redirect("staff")
 
@@ -710,7 +816,9 @@ def reports(request):
     except ValueError:
         report_date = timezone.localdate()
         messages.error(request, "Enter a valid report date.")
-    orders = Order.objects.filter(created_at__date=report_date)
+    orders = _for_user_property(
+        Order.objects.filter(created_at__date=report_date), request.user
+    )
     context = {
         "report_date": report_date,
         "total_orders": orders.count(),
@@ -719,8 +827,9 @@ def reports(request):
         "cancelled": orders.filter(status="cancelled").count(),
         "kitchen": orders.filter(lines__menu_item__department="kitchen").distinct().count(),
         "bar": orders.filter(lines__menu_item__department="bar").distinct().count(),
-        "service_requests": ServiceRequest.objects.filter(
-            created_at__date=report_date
+        "service_requests": _for_user_property(
+            ServiceRequest.objects.filter(created_at__date=report_date),
+            request.user,
         ).count(),
         "awaiting_payment": orders.filter(payment_status="review").count(),
         **_base(request),
@@ -731,7 +840,7 @@ def reports(request):
 @login_required
 @user_passes_test(_manager_only, login_url="dashboard")
 def settings_page(request):
-    settings_record = PortalSettings.objects.first()
+    settings_record = _property_for_user(request.user)
     form = PortalSettingsForm(request.POST or None, instance=settings_record)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -747,7 +856,9 @@ def settings_page(request):
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
 def staff_shifts(request):
-    settings_record = PortalSettings.objects.first()
+    settings_record = _property_for_user(request.user)
+    if settings_record is None:
+        return HttpResponse("This account is not assigned to a property.", status=403)
     selected_shift = (
         request.POST.get("shift")
         if request.method == "POST"
@@ -765,7 +876,10 @@ def staff_shifts(request):
                 selected_staff[department] = None
                 continue
             profile = StaffProfile.objects.filter(
-                pk=staff_id, active=True, user__is_active=True
+                pk=staff_id,
+                property=_property_for_user(request.user),
+                active=True,
+                user__is_active=True,
             ).first()
             if profile is None:
                 messages.error(
@@ -778,32 +892,36 @@ def staff_shifts(request):
             with transaction.atomic():
                 for department, _ in ROUTING_DEPARTMENTS:
                     ShiftAssignment.objects.update_or_create(
+                        property=settings_record,
                         shift=selected_shift,
                         department=department,
                         defaults={"staff": selected_staff[department]},
                     )
-                settings_record = settings_record or PortalSettings.objects.create()
                 settings_record.active_shift = selected_shift
                 settings_record.save(update_fields=["active_shift", "updated_at"])
             messages.success(request, "Shift assignments saved.")
             return redirect(f"{reverse('staff_shifts')}?shift={selected_shift}")
 
     all_staff = list(
-        StaffProfile.objects.filter(active=True, user__is_active=True)
+        StaffProfile.objects.filter(
+            property=_property_for_user(request.user),
+            active=True,
+            user__is_active=True,
+        )
         .select_related("user")
         .order_by("user__first_name", "user__last_name", "user__username")
     )
     assigned_by_department = {
         assignment.department: assignment.staff
-        for assignment in ShiftAssignment.objects.filter(shift=selected_shift).select_related(
-            "staff__user"
-        )
+        for assignment in ShiftAssignment.objects.filter(
+            property=_property_for_user(request.user), shift=selected_shift
+        ).select_related("staff__user")
     }
     active_shift = settings_record.active_shift if settings_record else "morning"
     active_assignments = {
         assignment.department: assignment.staff
         for assignment in ShiftAssignment.objects.filter(
-            shift=active_shift
+            property=_property_for_user(request.user), shift=active_shift
         ).select_related("staff__user")
     }
     assignment_cards = [
@@ -815,8 +933,11 @@ def staff_shifts(request):
         for code, label in ROUTING_DEPARTMENTS
     ]
     today = timezone.localdate()
-    todays_orders = Order.objects.filter(created_at__date=today).prefetch_related(
-        "lines__menu_item", "notifications__staff__user"
+    todays_orders = _for_user_property(
+        Order.objects.filter(created_at__date=today).prefetch_related(
+            "lines__menu_item", "notifications__staff__user"
+        ),
+        request.user,
     )
     live_items = []
     for order in todays_orders.exclude(status__in=["completed", "cancelled"]):
@@ -854,11 +975,15 @@ def staff_shifts(request):
                     }.get(order.status),
                 }
             )
-    for service_request in ServiceRequest.objects.exclude(
-        status__in=["completed", "cancelled"]
-    ).select_related("service", "device").prefetch_related(
-        "notifications__staff__user"
-    )[:30]:
+    service_requests = _for_user_property(
+        ServiceRequest.objects.exclude(
+            status__in=["completed", "cancelled"]
+        ).select_related("service", "device").prefetch_related(
+            "notifications__staff__user"
+        ),
+        request.user,
+    )
+    for service_request in service_requests[:30]:
         attempt = service_request.notifications.first()
         service_department = (
             service_request.service.department if service_request.service else "services"
@@ -892,13 +1017,16 @@ def staff_shifts(request):
             }
         )
 
-    recent_activity = WhatsAppAttempt.objects.select_related(
-        "staff__user", "order", "service_request"
+    recent_activity = _for_user_property(
+        WhatsAppAttempt.objects.select_related(
+            "staff__user", "order", "service_request"
+        ),
+        request.user,
     )[:8]
     active_staff_ids = {
         assignment.staff_id
         for assignment in ShiftAssignment.objects.filter(
-            shift=selected_shift
+            property=_property_for_user(request.user), shift=selected_shift
         ).select_related("staff__user")
         if assignment.staff_id
         and assignment.staff.active
@@ -915,13 +1043,15 @@ def staff_shifts(request):
             "staff_members": all_staff,
             "staff_on_duty": len(active_staff_ids),
             "orders_today": todays_orders.count(),
-            "awaiting_acceptance": Order.objects.filter(
-                status="new"
+            "awaiting_acceptance": _for_user_property(
+                Order.objects.filter(status="new"), request.user
             ).count()
-            + ServiceRequest.objects.filter(status="new").count(),
-            "whatsapp_enabled": settings_record.whatsapp_enabled
-            if settings_record
-            else True,
+            + _for_user_property(
+                ServiceRequest.objects.filter(status="new"), request.user
+            ).count(),
+            "whatsapp_enabled": (
+                settings_record.whatsapp_enabled if settings_record else True
+            ),
             "live_items": live_items[:50],
             "recent_activity": recent_activity,
             **_base(request),

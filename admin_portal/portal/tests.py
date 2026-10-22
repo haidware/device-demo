@@ -30,14 +30,21 @@ User = get_user_model()
 
 class PortalFlowTests(TestCase):
     def setUp(self):
+        self.property = PortalSettings.objects.create(
+            property_name="Test Hotel", property_location="Lagos"
+        )
         self.admin = User.objects.create_superuser(
             username="admin", email="admin@example.test", password="SecurePass123!test"
         )
-        self.room = Room.objects.create(identifier="101")
+        self.room = Room.objects.create(property=self.property, identifier="101")
         self.device = Device.objects.create(
-            name="Room 101 tablet", device_id="123456", room=self.room
+            property=self.property,
+            name="Room 101 tablet",
+            device_id="123456",
+            room=self.room,
         )
         self.item = MenuItem.objects.create(
+            property=self.property,
             name="Jollof Rice",
             department="kitchen",
             category="Main",
@@ -71,7 +78,7 @@ class PortalFlowTests(TestCase):
         self.assertRedirects(response, reverse("dashboard"))
         manager = User.objects.get(username="property.manager")
         self.assertEqual(manager.staff_profile.role, "manager")
-        property_settings = PortalSettings.objects.get()
+        property_settings = manager.staff_profile.property
         self.assertEqual(property_settings.property_name, "Harbor Lounge")
         self.assertEqual(property_settings.property_location, "Victoria Island, Lagos")
         self.assertIn("_auth_user_id", self.client.session)
@@ -81,7 +88,7 @@ class PortalFlowTests(TestCase):
             username="manager",
             password="Strong-Manager-Passphrase-2841",
         )
-        StaffProfile.objects.create(user=manager, role="manager")
+        StaffProfile.objects.create(user=manager, property=self.property, role="manager")
         self.client.force_login(manager)
 
         staff_response = self.client.post(
@@ -112,7 +119,8 @@ class PortalFlowTests(TestCase):
             },
         )
         self.assertRedirects(settings_response, reverse("settings"))
-        property_settings = PortalSettings.objects.get()
+        property_settings = self.property
+        property_settings.refresh_from_db()
         self.assertEqual(property_settings.account_number, "0123456789")
         self.assertEqual(property_settings.property_location, "Lagos")
 
@@ -121,7 +129,7 @@ class PortalFlowTests(TestCase):
             username="portal.manager",
             password="Strong-Manager-Passphrase-9281",
         )
-        StaffProfile.objects.create(user=manager, role="manager")
+        StaffProfile.objects.create(user=manager, property=self.property, role="manager")
         self.client.force_login(manager)
 
         response = self.client.get(reverse("dashboard"))
@@ -150,6 +158,7 @@ class PortalFlowTests(TestCase):
 
     def test_admin_can_edit_service_description_and_department(self):
         service = ServiceOption.objects.create(
+            property=self.property,
             name="Fresh Towels",
             department="housekeeping",
             description="Delivered to your room.",
@@ -176,7 +185,7 @@ class PortalFlowTests(TestCase):
             username="site.admin",
             password="Strong-Admin-Passphrase-9281",
         )
-        StaffProfile.objects.create(user=site_admin, role="admin")
+        StaffProfile.objects.create(user=site_admin, property=self.property, role="admin")
         self.client.force_login(site_admin)
         create_response = self.client.post(
             reverse("staff_admin_add"),
@@ -190,24 +199,24 @@ class PortalFlowTests(TestCase):
         self.assertFalse(User.objects.filter(username="unauthorized.admin").exists())
         settings_response = self.client.get(reverse("settings"))
         self.assertEqual(settings_response.status_code, 302)
-        self.assertFalse(PortalSettings.objects.exists())
+        self.assertEqual(PortalSettings.objects.count(), 1)
 
     def test_only_administrator_can_manage_operations(self):
         manager = User.objects.create_user(
             username="operations.manager",
             password="Strong-Operations-Manager-9281",
         )
-        StaffProfile.objects.create(user=manager, role="manager")
+        StaffProfile.objects.create(user=manager, property=self.property, role="manager")
         reception = User.objects.create_user(
             username="operations.reception",
             password="Strong-Operations-Reception-9281",
         )
-        StaffProfile.objects.create(user=reception, role="reception")
+        StaffProfile.objects.create(user=reception, property=self.property, role="reception")
         administrator = User.objects.create_user(
             username="operations.admin",
             password="Strong-Operations-Admin-9281",
         )
-        StaffProfile.objects.create(user=administrator, role="admin")
+        StaffProfile.objects.create(user=administrator, property=self.property, role="admin")
 
         for user in (manager, reception):
             with self.subTest(role=user.staff_profile.role):
@@ -223,7 +232,7 @@ class PortalFlowTests(TestCase):
             username="photo.admin",
             password="Strong-Manager-Passphrase-2841",
         )
-        StaffProfile.objects.create(user=administrator, role="admin")
+        StaffProfile.objects.create(user=administrator, property=self.property, role="admin")
         self.client.force_login(administrator)
         photo = SimpleUploadedFile(
             "updated.png",
@@ -257,6 +266,7 @@ class PortalFlowTests(TestCase):
     def test_admin_can_toggle_kitchen_and_bar_menu_availability(self):
         self.client.force_login(self.admin)
         bar_item = MenuItem.objects.create(
+            property=self.property,
             name="Fresh juice",
             department="bar",
             category="Drinks",
@@ -329,7 +339,7 @@ class PortalFlowTests(TestCase):
 
     def test_reception_cannot_change_menu_services_or_device_configuration(self):
         reception = User.objects.create_user(username="reception", password="x")
-        StaffProfile.objects.create(user=reception, role="reception")
+        StaffProfile.objects.create(user=reception, property=self.property, role="reception")
         self.client.force_login(reception)
         for name, args in [
             ("menu_list", ["kitchen"]),
@@ -374,7 +384,7 @@ class PortalFlowTests(TestCase):
         ).json()["items"]
         self.assertEqual(
             next(entry for entry in payload if entry["id"] == item.pk)["image_url"],
-            f"http://testserver{reverse('api_menu_image', args=[item.pk])}",
+            f"http://testserver{reverse('api_menu_image', args=[item.pk])}?device_id={self.device.device_id}",
         )
 
     @override_settings(
@@ -393,7 +403,10 @@ class PortalFlowTests(TestCase):
         upstream_response.read.return_value = b"\x89PNG\r\n\x1a\nimage-bytes"
         urlopen.return_value.__enter__.return_value = upstream_response
 
-        response = self.client.get(reverse("api_menu_image", args=[self.item.pk]))
+        response = self.client.get(
+            reverse("api_menu_image", args=[self.item.pk]),
+            {"device_id": self.device.device_id},
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "image/png")
@@ -410,7 +423,10 @@ class PortalFlowTests(TestCase):
         self.item.image_url = "https://untrusted.example/image.png"
         self.item.save(update_fields=["image_url"])
 
-        response = self.client.get(reverse("api_menu_image", args=[self.item.pk]))
+        response = self.client.get(
+            reverse("api_menu_image", args=[self.item.pk]),
+            {"device_id": self.device.device_id},
+        )
 
         self.assertEqual(response.status_code, 502)
         urlopen.assert_not_called()
@@ -432,6 +448,7 @@ class PortalFlowTests(TestCase):
         )
         StaffProfile.objects.create(
             user=staff_user,
+            property=self.property,
             role="reception",
             departments="Kitchen, Services",
             phone_number="+2348012345678",
@@ -484,13 +501,12 @@ class PortalFlowTests(TestCase):
         self.assertContains(response, self.device.device_id)
 
     def test_device_session_returns_registered_device(self):
-        PortalSettings.objects.create(
-            property_name="Demo Hotel",
-            property_location="Victoria Island, Lagos",
-            bank_name="GTBank",
-            account_name="Demo Hotel Ltd",
-            account_number="0123456789",
-        )
+        self.property.property_name = "Demo Hotel"
+        self.property.property_location = "Victoria Island, Lagos"
+        self.property.bank_name = "GTBank"
+        self.property.account_name = "Demo Hotel Ltd"
+        self.property.account_number = "0123456789"
+        self.property.save()
         response = self.client.post(
             reverse("api_device_session"),
             data=json.dumps({"device_id": "123456"}),
@@ -602,12 +618,14 @@ class PortalFlowTests(TestCase):
 
     def test_menu_api_only_exposes_admin_available_items(self):
         available_bar_item = MenuItem.objects.create(
+            property=self.property,
             name="Available Juice",
             department="bar",
             category="Drinks",
             price=Decimal("1500.00"),
         )
         unavailable_kitchen_item = MenuItem.objects.create(
+            property=self.property,
             name="Hidden Soup",
             department="kitchen",
             category="Soup",
@@ -615,6 +633,7 @@ class PortalFlowTests(TestCase):
             available=False,
         )
         unavailable_bar_item = MenuItem.objects.create(
+            property=self.property,
             name="Hidden Cocktail",
             department="bar",
             category="Drinks",
@@ -645,6 +664,142 @@ class PortalFlowTests(TestCase):
         departments = {entry["department"] for entry in response.json()["items"]}
         self.assertEqual(departments, {"kitchen", "bar"})
 
+    def test_device_apis_only_expose_and_accept_its_property_data(self):
+        other_property = PortalSettings.objects.create(
+            property_name="Other Hotel",
+            property_location="Abuja",
+            bank_name="Other Bank",
+            account_name="Other Hotel Ltd",
+            account_number="9999999999",
+        )
+        other_room = Room.objects.create(property=other_property, identifier="202")
+        other_device = Device.objects.create(
+            property=other_property,
+            name="Other room tablet",
+            device_id="654321",
+            room=other_room,
+        )
+        other_item = MenuItem.objects.create(
+            property=other_property,
+            name="Other Hotel Meal",
+            department="kitchen",
+            category="Main",
+            price=Decimal("1000.00"),
+            image_url="https://storage.test/private.png",
+        )
+        other_service = ServiceOption.objects.create(
+            property=other_property,
+            name="Other Hotel Service",
+            department="housekeeping",
+        )
+
+        own_menu = self.client.get(
+            reverse("api_device_menu"), HTTP_X_DEVICE_ID=self.device.device_id
+        )
+        other_menu = self.client.get(
+            reverse("api_device_menu"), HTTP_X_DEVICE_ID=other_device.device_id
+        )
+        self.assertEqual(
+            {item["id"] for item in own_menu.json()["items"]}, {self.item.pk}
+        )
+        self.assertEqual(
+            {item["id"] for item in other_menu.json()["items"]}, {other_item.pk}
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("api_device_services"),
+                HTTP_X_DEVICE_ID=self.device.device_id,
+            ).json()["services"],
+            [],
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("api_menu_image", args=[other_item.pk]),
+                {"device_id": self.device.device_id},
+            ).status_code,
+            404,
+        )
+
+        session = self.client.post(
+            reverse("api_device_session"),
+            data=json.dumps({"device_id": other_device.device_id}),
+            content_type="application/json",
+        )
+        self.assertEqual(session.json()["property"]["name"], "Other Hotel")
+        self.assertEqual(
+            session.json()["payment_details"]["account_number"], "9999999999"
+        )
+
+        order_response = self.client.post(
+            reverse("api_create_order"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "sender_name": "Jane Customer",
+                    "expected_total": 1100,
+                    "items": [{"item_id": other_item.pk, "quantity": 1}],
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(order_response.status_code, 400)
+        self.assertFalse(Order.objects.filter(property=self.property).exists())
+
+        service_response = self.client.post(
+            reverse("api_create_service_request"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "service_id": other_service.pk,
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(service_response.status_code, 400)
+        self.assertFalse(ServiceRequest.objects.filter(property=self.property).exists())
+
+    def test_staff_cannot_access_or_change_another_property_records(self):
+        other_property = PortalSettings.objects.create(property_name="Other Hotel")
+        other_item = MenuItem.objects.create(
+            property=other_property,
+            name="Private Menu Item",
+            department="bar",
+            category="Drinks",
+            price=Decimal("900.00"),
+        )
+        other_device = Device.objects.create(
+            property=other_property, name="Other tablet", device_id="999999"
+        )
+        other_order = Order.objects.create(
+            property=other_property, device=other_device
+        )
+        administrator = User.objects.create_user(
+            username="tenant.admin",
+            password="Strong-Tenant-Admin-Passphrase-2841",
+        )
+        StaffProfile.objects.create(
+            user=administrator, property=self.property, role="admin"
+        )
+        self.client.force_login(administrator)
+
+        kitchen_response = self.client.get(reverse("menu_list", args=["kitchen"]))
+        self.assertContains(kitchen_response, self.item.name)
+        self.assertNotContains(kitchen_response, other_item.name)
+        orders_response = self.client.get(reverse("orders"))
+        self.assertNotContains(orders_response, other_order.order_number)
+        self.assertEqual(
+            self.client.get(
+                reverse("order_detail", args=[other_order.pk])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(reverse("menu_toggle", args=[other_item.pk])).status_code,
+            404,
+        )
+        other_item.refresh_from_db()
+        self.assertTrue(other_item.available)
+
     def test_order_submission_rejects_items_made_unavailable(self):
         self.item.available = False
         self.item.save(update_fields=["available"])
@@ -668,11 +823,13 @@ class PortalFlowTests(TestCase):
 
     def test_device_services_returns_only_active_services(self):
         active_service = ServiceOption.objects.create(
+            property=self.property,
             name="Fresh Towels",
             department="housekeeping",
             description="Delivered to your room.",
         )
         ServiceOption.objects.create(
+            property=self.property,
             name="Late Checkout",
             department="reception",
             active=False,
@@ -698,6 +855,7 @@ class PortalFlowTests(TestCase):
 
     def test_device_can_submit_service_request_for_its_assigned_room(self):
         service = ServiceOption.objects.create(
+            property=self.property,
             name="Fresh Towels",
             department="housekeeping",
         )
@@ -742,12 +900,14 @@ class PortalFlowTests(TestCase):
 
     def test_order_notification_message_contains_sender_and_department_items(self):
         bar_item = MenuItem.objects.create(
+            property=self.property,
             name="Mango Mocktail",
             department="bar",
             category="Drinks",
             price=Decimal("3000.00"),
         )
         order = Order.objects.create(
+            property=self.property,
             device=self.device,
             sender_name="Jane Customer",
             service_charge=Decimal("800.00"),
@@ -788,6 +948,7 @@ class PortalFlowTests(TestCase):
 
     def test_dashboard_activity_shows_department_whatsapp_send_links(self):
         bar_item = MenuItem.objects.create(
+            property=self.property,
             name="Mango Mocktail",
             department="bar",
             category="Drinks",
@@ -805,20 +966,24 @@ class PortalFlowTests(TestCase):
         )
         kitchen_staff = StaffProfile.objects.create(
             user=kitchen_staff_user,
+            property=self.property,
             role="kitchen_staff",
             departments="Kitchen",
             phone_number="+234 801 111 2222",
         )
         bar_staff = StaffProfile.objects.create(
             user=bar_staff_user,
+            property=self.property,
             role="bar_staff",
             departments="Bar",
             phone_number="+234 802 333 4444",
         )
         ShiftAssignment.objects.create(
+            property=self.property,
             shift="morning", department="kitchen", staff=kitchen_staff
         )
         ShiftAssignment.objects.create(
+            property=self.property,
             shift="morning", department="bar", staff=bar_staff
         )
         order_response = self.client.post(
@@ -913,9 +1078,10 @@ class PortalFlowTests(TestCase):
             username="payment.admin",
             password="Strong-Payment-Admin-9281",
         )
-        StaffProfile.objects.create(user=administrator, role="admin")
+        StaffProfile.objects.create(user=administrator, property=self.property, role="admin")
         self.client.force_login(administrator)
         order = Order.objects.create(
+            property=self.property,
             device=self.device, sender_name="Jane", payment_status="review"
         )
         OrderLine.objects.create(
@@ -971,7 +1137,7 @@ class PortalFlowTests(TestCase):
             username="admin.creator",
             password="Strong-Admin-Creator-9281",
         )
-        StaffProfile.objects.create(user=manager, role="manager")
+        StaffProfile.objects.create(user=manager, property=self.property, role="manager")
         self.client.force_login(manager)
 
         response = self.client.post(
@@ -1011,7 +1177,10 @@ class PortalFlowTests(TestCase):
             last_name="Staff",
         )
         staff = StaffProfile.objects.create(
-            user=staff_user, role="handler", phone_number="+234 801 234 5678"
+            user=staff_user,
+            property=self.property,
+            role="handler",
+            phone_number="+234 801 234 5678",
         )
         self.client.force_login(self.admin)
         response = self.client.post(
@@ -1072,11 +1241,13 @@ class PortalFlowTests(TestCase):
         self.assertIn("No active staff contact assigned", attempt.detail)
 
     def test_handler_staff_is_limited_to_notification_only_access(self):
-        order = Order.objects.create(device=self.device)
+        order = Order.objects.create(property=self.property, device=self.device)
         staff_user = User.objects.create_user(
             username="handler", password="Strong-Unique-Passphrase-9281"
         )
-        StaffProfile.objects.create(user=staff_user, role="handler")
+        StaffProfile.objects.create(
+            user=staff_user, property=self.property, role="handler"
+        )
         self.client.force_login(staff_user)
 
         dashboard_response = self.client.get(reverse("dashboard"))
@@ -1194,7 +1365,9 @@ class PortalFlowTests(TestCase):
 
     def test_only_admin_can_generate_room_qr(self):
         reception = User.objects.create_user(username="reception", password="test")
-        StaffProfile.objects.create(user=reception, role="reception")
+        StaffProfile.objects.create(
+            user=reception, property=self.property, role="reception"
+        )
         self.client.force_login(reception)
         response = self.client.post(reverse("room_qr", args=[self.room.pk]))
         self.assertEqual(response.status_code, 403)
