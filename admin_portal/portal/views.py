@@ -396,6 +396,17 @@ def menu_edit(request, item_id):
 
 @login_required
 @user_passes_test(_can_manage_configuration, login_url="dashboard")
+@require_POST
+def menu_toggle(request, item_id):
+    item = get_object_or_404(MenuItem, pk=item_id)
+    item.available = not item.available
+    item.save(update_fields=["available"])
+    messages.success(request, f"{item.name} availability updated.")
+    return redirect("menu_list", department=item.department)
+
+
+@login_required
+@user_passes_test(_can_manage_configuration, login_url="dashboard")
 def services_list(request):
     options = ServiceOption.objects.all()
     form = ServiceOptionForm(request.POST or None)

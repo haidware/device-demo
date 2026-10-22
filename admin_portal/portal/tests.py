@@ -224,6 +224,51 @@ class PortalFlowTests(TestCase):
         self.assertEqual(self.item.image_url, "https://storage.test/menu/updated.png")
         store_image.assert_called_once()
 
+    def test_admin_can_toggle_kitchen_and_bar_menu_availability(self):
+        self.client.force_login(self.admin)
+        bar_item = MenuItem.objects.create(
+            name="Fresh juice",
+            department="bar",
+            category="Drinks",
+            price=Decimal("1200.00"),
+            preparation_minutes=5,
+            available=False,
+        )
+
+        self.assertContains(
+            self.client.get(reverse("menu_list", args=["kitchen"])),
+            "Make unavailable",
+        )
+        self.assertContains(
+            self.client.get(reverse("menu_list", args=["bar"])),
+            "Make available",
+        )
+
+        for item, expected_available in (
+            (self.item, False),
+            (bar_item, True),
+        ):
+            with self.subTest(department=item.department):
+                response = self.client.post(
+                    reverse("menu_toggle", args=[item.pk])
+                )
+
+                self.assertRedirects(
+                    response,
+                    reverse("menu_list", args=[item.department]),
+                )
+                item.refresh_from_db()
+                self.assertEqual(item.available, expected_available)
+
+    def test_menu_availability_toggle_requires_post(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("menu_toggle", args=[self.item.pk]))
+
+        self.assertEqual(response.status_code, 405)
+        self.item.refresh_from_db()
+        self.assertTrue(self.item.available)
+
     @override_settings(
         SUPABASE_URL="https://rgbqfzirecifubptdfqk.supabase.co",
         SUPABASE_SERVICE_ROLE_KEY="test-service-role-key",
