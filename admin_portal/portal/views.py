@@ -77,6 +77,7 @@ def _base(request):
     return {
         "portal_settings": PortalSettings.objects.first(),
         "can_manage_operations": _can_manage_operations(request.user),
+        "can_manage_configuration": _can_manage_configuration(request.user),
         "can_manage_staff": _can_manage_staff(request.user),
         "can_manage_settings": _manager_only(request.user),
     }

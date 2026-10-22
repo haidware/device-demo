@@ -106,6 +106,39 @@ class PortalFlowTests(TestCase):
         self.assertRedirects(settings_response, reverse("settings"))
         self.assertEqual(PortalSettings.objects.get().account_number, "0123456789")
 
+    def test_manager_dashboard_shows_configuration_and_staff_navigation(self):
+        manager = User.objects.create_user(
+            username="portal.manager",
+            password="Strong-Manager-Passphrase-9281",
+        )
+        StaffProfile.objects.create(user=manager, role="manager")
+        self.client.force_login(manager)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, reverse("menu_list", args=["kitchen"]))
+        self.assertContains(response, reverse("menu_list", args=["bar"]))
+        self.assertContains(response, reverse("services"))
+        self.assertContains(response, reverse("staff_shifts"))
+        self.assertContains(response, reverse("rooms"))
+        self.assertContains(response, reverse("devices"))
+        self.assertContains(response, reverse("staff"))
+
+        for name, args in [
+            ("menu_list", ["kitchen"]),
+            ("menu_list", ["bar"]),
+            ("services", []),
+            ("staff_shifts", []),
+            ("rooms", []),
+            ("devices", []),
+            ("staff", []),
+        ]:
+            with self.subTest(page=name, args=args):
+                self.assertEqual(
+                    self.client.get(reverse(name, args=args)).status_code,
+                    200,
+                )
+
     def test_admin_can_edit_service_description_and_department(self):
         service = ServiceOption.objects.create(
             name="Fresh Towels",
