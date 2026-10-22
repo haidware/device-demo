@@ -211,8 +211,6 @@ class HomeScreen extends StatelessWidget {
     super.key,
     required this.cartCount,
     required this.roomLabel,
-    required this.showKitchen,
-    required this.showBar,
     required this.isQrGuest,
     required this.isConnecting,
     required this.connectionError,
@@ -220,6 +218,7 @@ class HomeScreen extends StatelessWidget {
     required this.onEnterDeviceId,
     required this.onOpenKitchen,
     required this.onOpenBar,
+    required this.onOpenServices,
     required this.onOpenRoom,
     required this.onOpenCart,
     required this.onOpenNotifications,
@@ -227,8 +226,6 @@ class HomeScreen extends StatelessWidget {
 
   final int cartCount;
   final String roomLabel;
-  final bool showKitchen;
-  final bool showBar;
   final bool isQrGuest;
   final bool isConnecting;
   final String? connectionError;
@@ -236,6 +233,7 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onEnterDeviceId;
   final VoidCallback onOpenKitchen;
   final VoidCallback onOpenBar;
+  final VoidCallback onOpenServices;
   final VoidCallback onOpenRoom;
   final VoidCallback onOpenCart;
   final VoidCallback onOpenNotifications;
@@ -303,103 +301,99 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(color: AppColors.muted, fontSize: 17),
                 ),
                 const SizedBox(height: 18),
-                if (showKitchen || showBar)
-                  Expanded(
-                    child: Row(
-                      children: [
-                        if (showKitchen)
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _CategoryCard(
+                          title: 'Kitchen',
+                          subtitle: 'Delicious meals',
+                          icon: Icons.restaurant,
+                          onTap: onOpenKitchen,
+                          variant: 0,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _CategoryCard(
+                          title: 'Bar',
+                          subtitle: 'Drinks & more',
+                          icon: Icons.local_bar,
+                          onTap: onOpenBar,
+                          variant: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _CategoryCard(
+                          title: 'Services',
+                          subtitle: 'Guest assistance',
+                          icon: Icons.room_service_outlined,
+                          onTap: onOpenServices,
+                          variant: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: InkWell(
+                    onTap: onOpenServices,
+                    borderRadius: BorderRadius.circular(10),
+                    child: const InfoPanel(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 13,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.room_service_outlined,
+                            color: AppColors.gold,
+                            size: 27,
+                          ),
+                          SizedBox(width: 14),
                           Expanded(
-                            child: _CategoryCard(
-                              title: 'Kitchen',
-                              subtitle: 'Delicious meals',
-                              icon: Icons.restaurant,
-                              onTap: onOpenKitchen,
-                              variant: 0,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Need assistance?',
+                                  style: TextStyle(
+                                    color: AppColors.goldLight,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Request a service for your room or table',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        if (showKitchen && showBar) const SizedBox(width: 14),
-                        if (showBar)
-                          Expanded(
-                            child: _CategoryCard(
-                              title: 'Bar',
-                              subtitle: 'Drinks & more',
-                              icon: Icons.local_bar,
-                              onTap: onOpenBar,
-                              variant: 1,
+                          Text(
+                            'View services',
+                            style: TextStyle(
+                              color: AppColors.text,
+                              fontSize: 14,
                             ),
                           ),
-                      ],
-                    ),
-                  )
-                else
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'No food or drink menus are available right now.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.muted, fontSize: 16),
+                          SizedBox(width: 6),
+                          Icon(
+                            Icons.arrow_forward,
+                            color: AppColors.gold,
+                            size: 18,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                if (showKitchen)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: InkWell(
-                      onTap: onOpenKitchen,
-                      borderRadius: BorderRadius.circular(10),
-                      child: const InfoPanel(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 13,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.sell_outlined,
-                              color: AppColors.gold,
-                              size: 27,
-                            ),
-                            SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Special Offer',
-                                    style: TextStyle(
-                                      color: AppColors.goldLight,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    '10% off selected items',
-                                    style: TextStyle(
-                                      color: AppColors.muted,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              'View all',
-                              style: TextStyle(
-                                color: AppColors.text,
-                                fontSize: 14,
-                              ),
-                            ),
-                            SizedBox(width: 6),
-                            Icon(
-                              Icons.arrow_forward,
-                              color: AppColors.gold,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                ),
               ],
             ),
           ),

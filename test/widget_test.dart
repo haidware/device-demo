@@ -43,7 +43,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('homepage only shows menu departments made available', (
+  testWidgets('homepage always shows kitchen, bar and services options', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -57,8 +57,6 @@ void main() {
           body: HomeScreen(
             cartCount: 0,
             roomLabel: 'Room 101',
-            showKitchen: true,
-            showBar: false,
             isQrGuest: true,
             isConnecting: false,
             connectionError: null,
@@ -66,6 +64,7 @@ void main() {
             onEnterDeviceId: () {},
             onOpenKitchen: () {},
             onOpenBar: () {},
+            onOpenServices: () {},
             onOpenRoom: () {},
             onOpenCart: () {},
             onOpenNotifications: () {},
@@ -75,8 +74,8 @@ void main() {
     );
 
     expect(find.text('Kitchen'), findsOneWidget);
-    expect(find.text('Bar'), findsNothing);
-    expect(find.text('Services'), findsNothing);
+    expect(find.text('Bar'), findsOneWidget);
+    expect(find.text('Services'), findsOneWidget);
     expect(find.byTooltip('Room details'), findsNothing);
     expect(tester.takeException(), isNull);
   });

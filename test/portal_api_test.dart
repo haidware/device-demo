@@ -48,6 +48,29 @@ void main() {
             headers: {'content-type': 'application/json'},
           );
         }
+        if (request.url.path.endsWith('/services/')) {
+          return http.Response(
+            jsonEncode({
+              'services': [
+                {
+                  'id': 7,
+                  'name': 'Fresh Towels',
+                  'department': 'housekeeping',
+                  'description': 'Fresh towels delivered to your room.',
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/service-requests/')) {
+          return http.Response(
+            jsonEncode({'request_id': 'service-request-123', 'status': 'new'}),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }
         return http.Response(
           jsonEncode({'order_number': 'HDW-ABC123'}),
           201,
@@ -66,6 +89,19 @@ void main() {
       expect(session.menuItems.single.department, 'kitchen');
       expect(session.menuItems.single.preparationTimeLabel, '25 min');
       expect(requests[1].headers['X-Device-ID'], '123456');
+      expect(session.services.single.name, 'Fresh Towels');
+      expect(session.services.single.department, 'housekeeping');
+      expect(requests[2].headers['X-Device-ID'], '123456');
+
+      final serviceRequestId = await api.requestService(
+        deviceId: '123456',
+        service: session.services.single,
+      );
+      expect(serviceRequestId, 'service-request-123');
+      expect(jsonDecode(requests[3].body), {
+        'device_id': '123456',
+        'service_id': 7,
+      });
 
       final orderNumber = await api.submitOrder(
         deviceId: '123456',

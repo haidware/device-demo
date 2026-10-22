@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/hospitality_service.dart';
 import '../models/order.dart';
 
 class PortalApiException implements Exception {
@@ -18,6 +19,7 @@ class PortalDeviceSession {
   const PortalDeviceSession({
     required this.room,
     required this.menuItems,
+    required this.services,
     required this.bankName,
     required this.accountName,
     required this.accountNumber,
@@ -25,6 +27,7 @@ class PortalDeviceSession {
 
   final String? room;
   final List<MenuItem> menuItems;
+  final List<HospitalityService> services;
   final String bankName;
   final String accountName;
   final String accountNumber;
@@ -67,13 +70,49 @@ class PortalApi {
       throw const PortalApiException('The portal returned an invalid menu.');
     }
     final items = rawItems.map(_menuItemFromJson).toList();
+    final servicesResponse = await _send(
+      _client.get(
+        _uri('/api/v1/services/'),
+        headers: {'X-Device-ID': deviceId},
+      ),
+    );
+    final servicesData = _decodeObject(servicesResponse);
+    final rawServices = servicesData['services'];
+    if (rawServices is! List) {
+      throw const PortalApiException(
+        'The portal returned an invalid services list.',
+      );
+    }
+    final services = rawServices.map(_serviceFromJson).toList();
     return PortalDeviceSession(
       room: sessionData['room'] as String?,
       menuItems: items,
+      services: services,
       bankName: paymentDetails['bank_name'] as String? ?? '',
       accountName: paymentDetails['account_name'] as String? ?? '',
       accountNumber: paymentDetails['account_number'] as String? ?? '',
     );
+  }
+
+  Future<String> requestService({
+    required String deviceId,
+    required HospitalityService service,
+  }) async {
+    final response = await _send(
+      _client.post(
+        _uri('/api/v1/service-requests/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'device_id': deviceId, 'service_id': service.id}),
+      ),
+    );
+    final data = _decodeObject(response);
+    final requestId = data['request_id'];
+    if (requestId is! String || requestId.isEmpty) {
+      throw const PortalApiException(
+        'The portal did not return a service request number.',
+      );
+    }
+    return requestId;
   }
 
   Future<String> submitOrder({
@@ -194,6 +233,32 @@ class PortalApi {
       department: department,
       preparationMinutes: preparationMinutes,
       imageUrl: imageUrl as String? ?? '',
+    );
+  }
+
+  HospitalityService _serviceFromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const PortalApiException(
+        'The portal returned an invalid service option.',
+      );
+    }
+    final id = value['id'];
+    final name = value['name'];
+    final department = value['department'];
+    final description = value['description'];
+    if (id is! int ||
+        name is! String ||
+        department is! String ||
+        description is! String) {
+      throw const PortalApiException(
+        'The portal returned an invalid service option.',
+      );
+    }
+    return HospitalityService(
+      id: id,
+      name: name,
+      department: department,
+      description: description,
     );
   }
 }

@@ -101,6 +101,32 @@ def device_menu(request):
 
 
 @csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def device_services(request):
+    if request.method == "OPTIONS":
+        return JsonResponse({}, status=204)
+    device = _device_from_id(request.headers.get("X-Device-ID", ""))
+    if not device:
+        return _device_error()
+    services = ServiceOption.objects.filter(active=True).order_by(
+        "department", "name"
+    )
+    return JsonResponse(
+        {
+            "services": [
+                {
+                    "id": service.pk,
+                    "name": service.name,
+                    "department": service.department,
+                    "description": service.description,
+                }
+                for service in services
+            ]
+        }
+    )
+
+
+@csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
 def create_order(request):
     if request.method == "OPTIONS":

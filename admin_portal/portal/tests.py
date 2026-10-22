@@ -15,6 +15,7 @@ from .models import (
     PortalSettings,
     Room,
     ServiceOption,
+    ServiceRequest,
     ShiftAssignment,
     StaffProfile,
     WhatsAppAttempt,
@@ -470,6 +471,59 @@ class PortalFlowTests(TestCase):
             response.json()["items"][0]["department"],
             "kitchen",
         )
+
+    def test_device_services_returns_only_active_services(self):
+        active_service = ServiceOption.objects.create(
+            name="Fresh Towels",
+            department="housekeeping",
+            description="Delivered to your room.",
+        )
+        ServiceOption.objects.create(
+            name="Late Checkout",
+            department="reception",
+            active=False,
+        )
+
+        response = self.client.get(
+            reverse("api_device_services"),
+            HTTP_X_DEVICE_ID=self.device.device_id,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["services"],
+            [
+                {
+                    "id": active_service.pk,
+                    "name": "Fresh Towels",
+                    "department": "housekeeping",
+                    "description": "Delivered to your room.",
+                }
+            ],
+        )
+
+    def test_device_can_submit_service_request_for_its_assigned_room(self):
+        service = ServiceOption.objects.create(
+            name="Fresh Towels",
+            department="housekeeping",
+        )
+
+        response = self.client.post(
+            reverse("api_create_service_request"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "service_id": service.pk,
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        request_record = ServiceRequest.objects.get()
+        self.assertEqual(request_record.device, self.device)
+        self.assertEqual(request_record.service, service)
+        self.assertEqual(request_record.room_identifier, self.room.identifier)
 
     def test_paid_order_is_created_for_staff_payment_review(self):
         response = self.client.post(

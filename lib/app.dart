@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'models/app_page.dart';
+import 'models/hospitality_service.dart';
 import 'models/order.dart';
 import 'services/portal_api.dart';
 import 'screens/menu_screens.dart';
 import 'screens/order_screens.dart';
+import 'screens/service_screens.dart';
 import 'screens/welcome_screens.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_widgets.dart';
@@ -48,6 +50,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   final Map<String, int> _cart = {};
   MenuItem _selectedItem = menuItems.first;
   List<MenuItem> _menuItems = menuItems;
+  List<HospitalityService> _services = const [];
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
   String _roomLabel = 'Room 101';
@@ -118,6 +121,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         if (!mounted) return;
         setState(() {
           _menuItems = session.menuItems;
+          _services = session.services;
           if (_menuItems.isNotEmpty) _selectedItem = _menuItems.first;
           _roomLabel = session.room ?? 'Device $_deviceIdNumber';
           _bankName = session.bankName;
@@ -273,8 +277,6 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         return HomeScreen(
           cartCount: _cartCount,
           roomLabel: _roomLabel,
-          showKitchen: _menuItems.any((item) => item.department == 'kitchen'),
-          showBar: _menuItems.any((item) => item.department == 'bar'),
           isQrGuest: _isQrGuest,
           isConnecting: _isConnecting,
           connectionError: _deviceAccessError,
@@ -282,6 +284,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           onEnterDeviceId: () => go(AppPage.staffAccess),
           onOpenKitchen: _openKitchen,
           onOpenBar: _openBar,
+          onOpenServices: () => go(AppPage.services),
           onOpenRoom: () => go(AppPage.staffAccess),
           onOpenCart: () => go(AppPage.cart),
           onOpenNotifications: () => go(AppPage.notifications),
@@ -297,6 +300,15 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           onSelectCategory: (value) => setState(() => _category = value),
           onOpenCart: () => go(AppPage.cart),
           onSelectItem: _openItem,
+          onBack: back,
+        );
+      case AppPage.services:
+        return ServicesScreen(
+          services: _services,
+          onRequestService: (service) => _portalApi.requestService(
+            deviceId: _deviceIdNumber.trim(),
+            service: service,
+          ),
           onBack: back,
         );
       case AppPage.detail:
