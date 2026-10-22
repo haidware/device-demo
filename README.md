@@ -26,7 +26,10 @@ Connect the GitHub repository to a Render **Web Service**, select **Docker** as
 the runtime, and leave the root directory at the repository root (the directory
 containing `Dockerfile`). Set the health check path to `/health`. Deployments
 use Render's injected `PORT`; set `API_BASE_URL` as a Docker build argument only
-if the public app domain changes.
+if the public app domain changes. To serve `haidhospitality.com.ng`, add it as
+a custom domain on this Render service and configure DNS using the target shown
+in Render. The portal allows the Render, Railway, and custom domains listed
+above; its settings page is `/admin/settings/`.
 
 ## Install as a PWA
 

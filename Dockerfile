@@ -15,8 +15,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBUG=0 \
-    ALLOWED_HOSTS=device-demo.onrender.com,device-demo-production.up.railway.app \
-    CSRF_TRUSTED_ORIGINS=https://device-demo.onrender.com,https://device-demo-production.up.railway.app \
+    ALLOWED_HOSTS=device-demo.onrender.com,device-demo-production.up.railway.app,haidhospitality.com.ng \
+    CSRF_TRUSTED_ORIGINS=https://device-demo.onrender.com,https://device-demo-production.up.railway.app,https://haidhospitality.com.ng \
     SECURE_SSL_REDIRECT=0
 
 WORKDIR /app/admin_portal

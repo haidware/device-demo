@@ -129,6 +129,19 @@ class PortalFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
 
+    def test_production_domains_are_allowed_and_healthy(self):
+        from django.conf import settings
+
+        custom_domain = "haidhospitality.com.ng"
+        self.assertIn(custom_domain, settings.ALLOWED_HOSTS)
+        self.assertIn(
+            f"https://{custom_domain}",
+            settings.CSRF_TRUSTED_ORIGINS,
+        )
+        response = self.client.get("/health", HTTP_HOST=custom_domain)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"ok")
+
     def test_manager_signup_creates_manager_role_and_session(self):
         self.client.force_login(self.platform_admin)
         self.client.post(reverse("command_center_generate_id"))
