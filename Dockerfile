@@ -30,7 +30,7 @@ COPY --from=flutter-build /app/build/web ./web_build/
 RUN DEBUG=1 python manage.py collectstatic --noinput
 
 COPY docker/start-app.sh /usr/local/bin/start-app
-RUN chmod +x /usr/local/bin/start-app
+RUN sed -i 's/\r$//' /usr/local/bin/start-app && chmod +x /usr/local/bin/start-app
 
 EXPOSE 8080
 CMD ["/usr/local/bin/start-app"]
