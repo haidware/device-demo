@@ -1125,3 +1125,7 @@ def staff_shifts(request):
 
 def health(request):
     return HttpResponse("ok", content_type="text/plain")
+
+
+def csrf_failure(request, reason=""):
+    return render(request, "csrf_failure.html", status=403)

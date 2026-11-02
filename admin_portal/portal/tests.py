@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command, CommandError
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from .menu_images import MenuImageStorageError, store_menu_image
@@ -176,6 +176,21 @@ class PortalFlowTests(TestCase):
         self.assertEqual(signup_code.property, property_settings)
         self.assertIsNotNone(signup_code.used_at)
         self.assertIn("_auth_user_id", self.client.session)
+
+    def test_stale_csrf_token_shows_signup_recovery_page(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            reverse("manager_signup"),
+            {"csrfmiddlewaretoken": "stale-token"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "Form Expired", status_code=403)
+        self.assertContains(
+            response, "your information was not submitted", status_code=403
+        )
+        self.assertContains(response, reverse("manager_signup"), status_code=403)
 
     def test_manager_signup_requires_valid_unused_generated_id(self):
         signup_id = PropertySignupCode.objects.create().code

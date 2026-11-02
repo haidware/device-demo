@@ -1,0 +1,19 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Form Expired – HAIDWARE</title>
+  <link rel="stylesheet" href="{% static 'portal/portal.css' %}?v=3">
+</head>
+<body class="login-page">
+  <section class="login-card">
+    <span class="brand-mark">H</span>
+    <h1>Form Expired</h1>
+    <p>For your security, we couldn't verify this form, so your information was not submitted. Reopen the signup form and try again. If you have it open in another tab, close the older tab first.</p>
+    <a class="button primary full" href="{% url 'manager_signup' %}">Reopen Manager Sign Up</a>
+    <small>HAIDWARE Hospitality © {% now "Y" %}</small>
+  </section>
+</body>
+</html>
