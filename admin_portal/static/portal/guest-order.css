@@ -183,6 +183,16 @@ button { color: inherit; }
 .guest-department-copy { display: flex; justify-content: space-between; gap: 8px; padding-top: 7px; }
 .guest-department-copy strong { font-size: 15px; }
 .guest-department-copy span { color: var(--guest-muted); font-size: 12px; }
+.guest-category-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 9px;
+  border: 1px solid #d9a4413d;
+  border-radius: 13px;
+  background: #d9a4411f;
+  color: var(--guest-gold-light);
+}
 .guest-offer, .guest-panel {
   border: 1px solid var(--guest-border);
   border-radius: 10px;

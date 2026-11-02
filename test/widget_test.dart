@@ -5,6 +5,12 @@ import 'package:device_demo/app.dart';
 import 'package:device_demo/screens/welcome_screens.dart';
 
 void main() {
+  test('greeting follows local time of day', () {
+    expect(greetingForTime(DateTime(2026, 11, 2, 8)), 'Good morning');
+    expect(greetingForTime(DateTime(2026, 11, 2, 14)), 'Good afternoon');
+    expect(greetingForTime(DateTime(2026, 11, 2, 22)), 'Good evening');
+  });
+
   test('QR links provide a valid numeric device ID', () {
     expect(
       scannedDeviceIdFromUri(
@@ -34,7 +40,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Good afternoon 👋'), findsOneWidget);
+    expect(find.text('${greetingForTime(DateTime.now())} 👋'), findsOneWidget);
     expect(find.text('Hotel staff sign in'), findsNothing);
     expect(
       find.text('This room QR is not connected to the ordering portal yet.'),
@@ -171,7 +177,7 @@ void main() {
     expect(find.text('Back to Home'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Back to Home'));
     await tester.pumpAndSettle();
-    expect(find.text('Good afternoon 👋'), findsOneWidget);
+    expect(find.text('${greetingForTime(DateTime.now())} 👋'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -217,7 +223,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
-    expect(find.text('Good afternoon 👋'), findsOneWidget);
+    expect(find.text('${greetingForTime(DateTime.now())} 👋'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     expect(find.text('Staff Login'), findsOneWidget);

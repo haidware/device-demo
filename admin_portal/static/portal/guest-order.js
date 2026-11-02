@@ -29,6 +29,19 @@
     .replaceAll("'", "&#39;");
   const money = (value) => `N${Math.round(Number(value) || 0).toLocaleString("en-NG")}`;
   const timeLabel = (minutes) => `${Number(minutes) || 0} min`;
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+  const departmentIcon = (department) => {
+    const icons = {
+      kitchen: '<path d="M3 20h18M5 17h14l-1.5-6h-11L5 17Zm7-13v2m-5.5.5 1.4 1.4m11.2-1.4-1.4 1.4M4 10h16"/>',
+      bar: '<path d="M3 4h18l-8 9v5l4 2H7l4-2v-5L3 4Zm8 5h8m-4-5-1 5"/>',
+    };
+    return `<svg class="guest-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[department]}</svg>`;
+  };
   const cartLines = () => state.items
     .filter((item) => state.cart.has(String(item.id)))
     .map((item) => ({ item, quantity: state.cart.get(String(item.id)) }));
@@ -76,17 +89,17 @@
     const hasBar = state.items.some((item) => item.department === "bar");
     const cards = [];
     if (hasKitchen) cards.push(`<button class="guest-department" data-action="department" data-department="kitchen">
-      ${art(0)}<span class="guest-department-copy"><span><strong>Kitchen</strong><br><span>Delicious meals</span></span><span>♨</span></span>
+      ${art(0)}<span class="guest-department-copy"><span><strong>Kitchen</strong><br><span>Delicious meals</span></span>${departmentIcon("kitchen")}</span>
     </button>`);
     if (hasBar) cards.push(`<button class="guest-department" data-action="department" data-department="bar">
-      ${art(1)}<span class="guest-department-copy"><span><strong>Bar</strong><br><span>Drinks &amp; more</span></span><span>♜</span></span>
+      ${art(1)}<span class="guest-department-copy"><span><strong>Bar</strong><br><span>Drinks &amp; more</span></span>${departmentIcon("bar")}</span>
     </button>`);
     return `<section class="guest-screen">
       <header class="guest-topbar">
         <span class="guest-location">${escapeHtml(state.room || "HAIDWARE")} ⌄</span>
         <span class="guest-tools">${cartButton()}</span>
       </header>
-      <h1 class="guest-greeting">Good afternoon 👋</h1>
+      <h1 class="guest-greeting">${greeting()} 👋</h1>
       <p class="guest-subtitle">What would you like to order?</p>
       ${cards.length
         ? `<div class="guest-departments">${cards.join("")}</div>`

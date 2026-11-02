@@ -4,6 +4,12 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
+String greetingForTime(DateTime time) {
+  if (time.hour < 12) return 'Good morning';
+  if (time.hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key, required this.onContinue});
 
@@ -287,8 +293,8 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 3),
-                const Text(
-                  'Good afternoon 👋',
+                Text(
+                  '${greetingForTime(DateTime.now())} 👋',
                   style: TextStyle(
                     color: AppColors.text,
                     fontSize: 29,
@@ -308,7 +314,7 @@ class HomeScreen extends StatelessWidget {
                         child: _CategoryCard(
                           title: 'Kitchen',
                           subtitle: 'Delicious meals',
-                          icon: Icons.restaurant,
+                          icon: Icons.restaurant_menu,
                           onTap: onOpenKitchen,
                           variant: 0,
                         ),
@@ -521,7 +527,18 @@ class _CategoryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(icon, color: AppColors.gold, size: 23),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.12),
+                      border: Border.all(
+                        color: AppColors.gold.withValues(alpha: 0.24),
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: AppColors.gold, size: 25),
+                  ),
                 ],
               ),
             ),
