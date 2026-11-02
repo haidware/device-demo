@@ -15,6 +15,17 @@ class PortalApiException implements Exception {
   String toString() => message;
 }
 
+String portalApiBaseUrl({
+  required bool isWeb,
+  required Uri currentUri,
+  required String configuredBaseUrl,
+}) {
+  if (isWeb && (currentUri.scheme == 'http' || currentUri.scheme == 'https')) {
+    return currentUri.origin;
+  }
+  return configuredBaseUrl;
+}
+
 class PortalDeviceSession {
   const PortalDeviceSession({
     required this.room,

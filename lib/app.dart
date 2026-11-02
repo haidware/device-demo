@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'models/app_page.dart';
@@ -68,7 +69,13 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   String? _orderSubmissionError;
   bool _notificationsCleared = false;
   String _orderNumber = '#HDW-101-00045';
-  final PortalApi _portalApi = PortalApi(PortalApi.configuredBaseUrl);
+  final PortalApi _portalApi = PortalApi(
+    portalApiBaseUrl(
+      isWeb: kIsWeb,
+      currentUri: Uri.base,
+      configuredBaseUrl: PortalApi.configuredBaseUrl,
+    ),
+  );
 
   @override
   void initState() {

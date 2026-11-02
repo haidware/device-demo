@@ -133,10 +133,12 @@ later by the migration role. Django continues to access the database through
 permissions. After deploying, verify the migration completed before treating
 the tables as restricted.
 
-The Render Docker build serves Flutter and Django from one origin. Its
-`API_BASE_URL` build argument defaults to
-`https://device-demo.onrender.com`; set it to the public service origin if the
-Render domain changes. Configure these Render environment variables:
+The Docker build serves Flutter and Django from one origin. Browser-based QR
+ordering uses the origin that served the QR page, keeping device IDs connected
+to the same portal database. Native Flutter builds use the `API_BASE_URL` build
+argument, which defaults to `https://device-demo.onrender.com`; set it to the
+public API origin when building for another deployment. Configure these
+environment variables for Render:
 
 - `SECRET_KEY`: a unique, randomly generated production secret.
 - `DEBUG`: `0`.

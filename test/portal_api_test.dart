@@ -7,6 +7,32 @@ import 'package:device_demo/models/order.dart';
 import 'package:device_demo/services/portal_api.dart';
 
 void main() {
+  test('web portal API uses the scanned QR code origin', () {
+    expect(
+      portalApiBaseUrl(
+        isWeb: true,
+        currentUri: Uri.parse(
+          'https://device-demo-production.up.railway.app/?device_id=123456',
+        ),
+        configuredBaseUrl: 'https://device-demo.onrender.com',
+      ),
+      'https://device-demo-production.up.railway.app',
+    );
+  });
+
+  test('native portal API uses its configured origin', () {
+    expect(
+      portalApiBaseUrl(
+        isWeb: false,
+        currentUri: Uri.parse(
+          'https://device-demo-production.up.railway.app/?device_id=123456',
+        ),
+        configuredBaseUrl: 'https://device-demo.onrender.com',
+      ),
+      'https://device-demo.onrender.com',
+    );
+  });
+
   test(
     'validates device, loads portal menu and submits paid order details',
     () async {
