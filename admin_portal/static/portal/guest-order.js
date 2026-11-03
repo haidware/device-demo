@@ -5,6 +5,7 @@
     screen: "loading",
     history: [],
     deviceId: config.device_id || "",
+    propertyName: "",
     room: "",
     bank: {},
     items: [],
@@ -99,6 +100,7 @@
         <span class="guest-location">${escapeHtml(state.room || "HAIDWARE")} ⌄</span>
         <span class="guest-tools">${cartButton()}</span>
       </header>
+      ${state.propertyName ? `<p class="guest-property-name">${escapeHtml(state.propertyName)}</p>` : ""}
       <h1 class="guest-greeting">${greeting()} 👋</h1>
       <p class="guest-subtitle">What would you like to order?</p>
       ${cards.length
@@ -267,6 +269,7 @@
         body: JSON.stringify({ device_id: state.deviceId }),
       });
       state.room = session.room || session.device_name || "HAIDWARE";
+      state.propertyName = session.property?.name || "";
       state.bank = session.payment_details || {};
       const menu = await requestJson(config.menu_url, {
         headers: { "X-Device-ID": state.deviceId },

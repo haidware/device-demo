@@ -54,6 +54,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   List<HospitalityService> _services = const [];
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
+  String _propertyName = '';
   String _roomLabel = 'Room 101';
   String _bankName = 'GTBank';
   String _accountName = 'ABC Hotel';
@@ -130,6 +131,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           _menuItems = session.menuItems;
           _services = session.services;
           if (_menuItems.isNotEmpty) _selectedItem = _menuItems.first;
+          _propertyName = session.propertyName ?? '';
           _roomLabel = session.room ?? 'Device $_deviceIdNumber';
           _bankName = session.bankName;
           _accountName = session.accountName;
@@ -283,6 +285,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.home:
         return HomeScreen(
           cartCount: _cartCount,
+          propertyName: _propertyName,
           roomLabel: _roomLabel,
           isQrGuest: _isQrGuest,
           isConnecting: _isConnecting,

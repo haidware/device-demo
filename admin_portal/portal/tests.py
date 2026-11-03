@@ -735,6 +735,12 @@ class PortalFlowTests(TestCase):
             response.json()["property"],
             {"name": "Demo Hotel", "location": "Victoria Island, Lagos"},
         )
+        self.client.force_login(self.admin)
+        self.client.post(reverse("room_qr", args=[self.room.pk]))
+        self.assertContains(
+            self.client.get(reverse("room_qr", args=[self.room.pk])),
+            "Demo Hotel",
+        )
         self.assertEqual(
             response.json()["payment_details"]["account_number"], "0123456789"
         )

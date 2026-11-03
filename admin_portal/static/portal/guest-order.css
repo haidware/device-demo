@@ -119,6 +119,13 @@ button { color: inherit; }
   font-weight: 600;
 }
 
+.guest-property-name {
+  margin: 2px 0 0;
+  color: var(--guest-gold-light);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .guest-subtitle { margin: 0; color: var(--guest-muted); font-size: 15px; }
 
 .guest-departments {

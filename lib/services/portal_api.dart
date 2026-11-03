@@ -28,6 +28,7 @@ String portalApiBaseUrl({
 
 class PortalDeviceSession {
   const PortalDeviceSession({
+    required this.propertyName,
     required this.room,
     required this.menuItems,
     required this.services,
@@ -36,6 +37,7 @@ class PortalDeviceSession {
     required this.accountNumber,
   });
 
+  final String? propertyName;
   final String? room;
   final List<MenuItem> menuItems;
   final List<HospitalityService> services;
@@ -67,6 +69,7 @@ class PortalApi {
     );
     final sessionData = _decodeObject(sessionResponse);
     final paymentDetails = sessionData['payment_details'];
+    final propertyData = sessionData['property'];
     if (paymentDetails is! Map<String, dynamic>) {
       throw const PortalApiException(
         'The portal returned invalid payment details.',
@@ -96,6 +99,9 @@ class PortalApi {
     }
     final services = rawServices.map(_serviceFromJson).toList();
     return PortalDeviceSession(
+      propertyName: propertyData is Map<String, dynamic>
+          ? propertyData['name'] as String?
+          : null,
       room: sessionData['room'] as String?,
       menuItems: items,
       services: services,

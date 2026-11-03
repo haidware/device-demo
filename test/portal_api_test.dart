@@ -45,6 +45,7 @@ void main() {
               'device_id': '123456',
               'device_name': 'Room tablet',
               'room': '101',
+              'property': {'name': 'Demo Hotel', 'location': 'Lagos'},
               'payment_details': {
                 'bank_name': 'GTBank',
                 'account_name': 'Demo Hotel',
@@ -109,6 +110,7 @@ void main() {
       addTearDown(api.close);
 
       final session = await api.signIn('123456');
+      expect(session.propertyName, 'Demo Hotel');
       expect(session.room, '101');
       expect(session.bankName, 'GTBank');
       expect(session.accountNumber, '0123456789');

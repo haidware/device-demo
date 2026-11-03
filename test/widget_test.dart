@@ -62,6 +62,7 @@ void main() {
         home: Scaffold(
           body: HomeScreen(
             cartCount: 0,
+            propertyName: 'Demo Hotel',
             roomLabel: 'Room 101',
             isQrGuest: true,
             isConnecting: false,
@@ -80,6 +81,7 @@ void main() {
     );
 
     expect(find.text('Kitchen'), findsOneWidget);
+    expect(find.text('Demo Hotel'), findsOneWidget);
     expect(find.text('Bar'), findsOneWidget);
     expect(find.text('Services'), findsOneWidget);
     expect(find.byTooltip('Room details'), findsNothing);

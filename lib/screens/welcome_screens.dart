@@ -216,6 +216,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.cartCount,
+    required this.propertyName,
     required this.roomLabel,
     required this.isQrGuest,
     required this.isConnecting,
@@ -231,6 +232,7 @@ class HomeScreen extends StatelessWidget {
   });
 
   final int cartCount;
+  final String propertyName;
   final String roomLabel;
   final bool isQrGuest;
   final bool isConnecting;
@@ -264,11 +266,33 @@ class HomeScreen extends StatelessWidget {
                         icon: const Icon(Icons.menu, size: 24),
                       ),
                     const Spacer(),
-                    Text(
-                      '$roomLabel  ⌄',
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 17,
+                    Flexible(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (propertyName.isNotEmpty)
+                            Text(
+                              propertyName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.goldLight,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          Text(
+                            '$roomLabel  ⌄',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const Spacer(),

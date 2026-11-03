@@ -4,7 +4,7 @@
 <div class="page-heading no-print"><div><p class="eyebrow">ROOM &amp; TABLE ACCESS</p><h1>{{ room.identifier }}</h1><p class="muted">{{ room.get_room_type_display }} · Scan to open the browser ordering experience.</p></div><a class="button subtle" href="{% url 'rooms' %}">Back to Rooms &amp; Tables</a></div>
 <section class="panel qr-print-card">
   {% if device %}
-  <p class="eyebrow">HAIDWARE HOSPITALITY</p>
+  <p class="eyebrow">{{ portal_settings.property_name|default:"HAIDWARE HOSPITALITY" }}</p>
   <h2>{{ room.identifier }}</h2>
   <p class="muted">{{ room.get_room_type_display }} · Assigned to {{ room.identifier }} · Scan to view the menu and place your order.</p>
   <img class="room-qr-image" src="{% url 'room_qr_image' room.pk %}" alt="QR code for {{ room.identifier }}">
