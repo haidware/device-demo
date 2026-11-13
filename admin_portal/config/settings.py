@@ -10,6 +10,11 @@ DEBUG = os.environ.get("DEBUG", "1").lower() in {"1", "true", "yes"}
 SECRET_KEY = os.environ.get("SECRET_KEY", "local-development-only-key")
 if not DEBUG and SECRET_KEY in {"", "local-development-only-key"}:
     raise RuntimeError("Set SECRET_KEY in production.")
+WEB_PUSH_VAPID_PUBLIC_KEY = os.environ.get("WEB_PUSH_VAPID_PUBLIC_KEY", "").strip()
+WEB_PUSH_VAPID_PRIVATE_KEY_B64 = os.environ.get(
+    "WEB_PUSH_VAPID_PRIVATE_KEY_B64", ""
+).strip()
+WEB_PUSH_VAPID_SUBJECT = os.environ.get("WEB_PUSH_VAPID_SUBJECT", "").strip()
 
 ALLOWED_HOSTS = [
     host.strip()

@@ -369,6 +369,20 @@ class WhatsAppAttempt(models.Model):
         ordering = ["-created_at"]
 
 
+class StaffPushSubscription(models.Model):
+    staff = models.ForeignKey(
+        StaffProfile, on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    endpoint = models.URLField(max_length=2048, unique=True)
+    p256dh = models.CharField(max_length=128)
+    auth = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+
 class PortalSettings(models.Model):
     SHIFT_CHOICES = SHIFT_CHOICES
 

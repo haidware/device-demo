@@ -229,6 +229,8 @@ class HomeScreen extends StatelessWidget {
     required this.onOpenRoom,
     required this.onOpenCart,
     required this.onOpenNotifications,
+    required this.nextWhatsAppDepartment,
+    required this.onOpenNextWhatsApp,
   });
 
   final int cartCount;
@@ -245,6 +247,8 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onOpenRoom;
   final VoidCallback onOpenCart;
   final VoidCallback onOpenNotifications;
+  final String? nextWhatsAppDepartment;
+  final VoidCallback onOpenNextWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -340,6 +344,40 @@ class HomeScreen extends StatelessWidget {
                   'How may we make your experience exceptional?',
                   style: TextStyle(color: AppColors.muted, fontSize: 14),
                 ),
+                if (nextWhatsAppDepartment != null) ...[
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.mark_chat_unread_outlined,
+                            color: AppColors.gold,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Send the order message to $nextWhatsAppDepartment',
+                              style: const TextStyle(
+                                color: AppColors.text,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: onOpenNextWhatsApp,
+                            child: const Text('Open WhatsApp'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Expanded(
                   child: Row(

@@ -1,3 +1,4 @@
+import base64
 import json
 from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
@@ -8,21 +9,25 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
+from django.middleware.csrf import get_token
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .models import (
     Device,
     MenuItem,
     Order,
     OrderLine,
+    StaffProfile,
+    StaffPushSubscription,
     ROUTING_DEPARTMENTS,
     ServiceOption,
     ServiceRequest,
     WhatsAppAttempt,
 )
+from .push_notifications import schedule_staff_pushes
 from .routing import _record_routing_attempts
 from .whatsapp_links import order_notification_text, whatsapp_link
 
@@ -286,6 +291,7 @@ def create_order(request):
                 preparation_minutes=item.preparation_minutes,
             )
         _record_routing_attempts(order=order)
+        schedule_staff_pushes(order=order)
     whatsapp_messages = []
     for attempt in WhatsAppAttempt.objects.select_related("staff__user").filter(
         order=order
@@ -398,7 +404,186 @@ def create_service_request(request):
         details=details.strip()[:2000],
     )
     _record_routing_attempts(service_request=request_record)
+    schedule_staff_pushes(service_request=request_record)
     return JsonResponse(
         {"request_id": str(request_record.request_number), "status": request_record.status},
         status=201,
+    )
+
+
+@require_GET
+def staff_session(request):
+    profile, error = _assigned_staff_profile(request)
+    if error:
+        return error
+    return JsonResponse(
+        {
+            "username": request.user.get_username(),
+            "name": request.user.get_full_name() or request.user.get_username(),
+            "department": profile.departments or profile.get_role_display(),
+            "push_enabled": _web_push_is_configured(),
+            "push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,
+            "csrf_token": get_token(request),
+        }
+    )
+
+
+@require_GET
+def staff_notifications(request):
+    profile, error = _assigned_staff_profile(request)
+    if error:
+        return error
+    attempts = (
+        WhatsAppAttempt.objects.filter(staff=profile)
+        .select_related(
+            "order",
+            "service_request",
+            "service_request__service",
+            "service_request__device",
+        )
+        .prefetch_related("order__lines__menu_item")
+        .order_by("-created_at")[:50]
+    )
+    notifications = []
+    for attempt in attempts:
+        if attempt.order_id:
+            order = attempt.order
+            order_lines = [
+                {
+                    "name": line.item_name,
+                    "quantity": line.quantity,
+                }
+                for line in order.lines.all()
+                if line.menu_item_id and line.menu_item.department == attempt.department
+            ]
+            notifications.append(
+                {
+                    "id": attempt.pk,
+                    "type": "order",
+                    "department": attempt.get_department_display(),
+                    "title": f"New {attempt.get_department_display()} order",
+                    "order_number": order.order_number,
+                    "room": order.room_identifier or "Unassigned",
+                    "sender_name": order.sender_name,
+                    "total": str(order.total),
+                    "status": order.get_status_display(),
+                    "payment_status": order.get_payment_status_display(),
+                    "items": order_lines,
+                    "details": "",
+                    "created_at": attempt.created_at.isoformat(),
+                }
+            )
+        elif attempt.service_request_id:
+            service_request = attempt.service_request
+            notifications.append(
+                {
+                    "id": attempt.pk,
+                    "type": "service",
+                    "department": attempt.get_department_display(),
+                    "title": service_request.service.name
+                    if service_request.service_id
+                    else "Guest service request",
+                    "order_number": str(service_request.request_number),
+                    "room": service_request.room_identifier or "Unassigned",
+                    "sender_name": "",
+                    "total": "0",
+                    "status": service_request.get_status_display(),
+                    "payment_status": "",
+                    "items": [],
+                    "details": service_request.details,
+                    "created_at": attempt.created_at.isoformat(),
+                }
+            )
+    return JsonResponse({"notifications": notifications})
+
+
+@require_POST
+@csrf_protect
+def staff_push_subscription(request):
+    profile, error = _assigned_staff_profile(request)
+    if error:
+        return error
+    if not _web_push_is_configured():
+        return JsonResponse(
+            {"error": "Browser push is not configured for this portal."},
+            status=503,
+        )
+    data, error = _json_body(request)
+    if error:
+        return error
+    subscription = data.get("subscription")
+    if not isinstance(subscription, dict):
+        return JsonResponse({"error": "Push subscription is required."}, status=400)
+    endpoint = subscription.get("endpoint")
+    keys = subscription.get("keys")
+    if not isinstance(endpoint, str) or not isinstance(keys, dict):
+        return JsonResponse({"error": "Push subscription is invalid."}, status=400)
+    try:
+        endpoint_parts = urlsplit(endpoint)
+        host = (endpoint_parts.hostname or "").lower().rstrip(".")
+        endpoint_port = endpoint_parts.port
+    except ValueError:
+        return JsonResponse({"error": "Push subscription is invalid."}, status=400)
+    allowed_hosts = (
+        host == "fcm.googleapis.com"
+        or host.endswith(".push.services.mozilla.com")
+        or host.endswith(".push.apple.com")
+        or host.endswith(".notify.windows.com")
+    )
+    p256dh, auth = keys.get("p256dh"), keys.get("auth")
+    if (
+        endpoint_parts.scheme != "https"
+        or endpoint_port not in (None, 443)
+        or endpoint_parts.username
+        or endpoint_parts.password
+        or not allowed_hosts
+        or len(endpoint) > 2048
+        or not isinstance(p256dh, str)
+        or not isinstance(auth, str)
+        or len(p256dh) > 128
+        or len(auth) > 64
+    ):
+        return JsonResponse({"error": "Push subscription is invalid."}, status=400)
+    try:
+        public_key = _decode_push_key(p256dh)
+        auth_key = _decode_push_key(auth)
+    except (ValueError, base64.binascii.Error):
+        return JsonResponse({"error": "Push subscription keys are invalid."}, status=400)
+    if len(public_key) != 65 or len(auth_key) != 16:
+        return JsonResponse({"error": "Push subscription keys are invalid."}, status=400)
+
+    StaffPushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={"staff": profile, "p256dh": p256dh, "auth": auth},
+    )
+    return JsonResponse({"status": "enabled"})
+
+
+def _assigned_staff_profile(request):
+    if not request.user.is_authenticated:
+        return None, JsonResponse({"error": "Sign in to view staff notifications."}, status=401)
+    profile = (
+        StaffProfile.objects.select_related("property")
+        .filter(user=request.user, active=True, property__is_active=True)
+        .first()
+    )
+    if profile is None:
+        return None, JsonResponse(
+            {"error": "This account is not an active staff account."}, status=403
+        )
+    return profile, None
+
+
+def _decode_push_key(value):
+    padded = value + "=" * (-len(value) % 4)
+    return base64.b64decode(padded.encode("ascii"), altchars=b"-_", validate=True)
+
+
+def _web_push_is_configured():
+    return all(
+        (
+            settings.WEB_PUSH_VAPID_PUBLIC_KEY,
+            settings.WEB_PUSH_VAPID_PRIVATE_KEY_B64,
+            settings.WEB_PUSH_VAPID_SUBJECT,
+        )
     )

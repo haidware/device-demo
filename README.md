@@ -43,13 +43,32 @@ Checkout uses bank transfer and generates a reception payment-message preview
 after guests enter the name on the bank sender account and select **I have
 paid**. The order and payment amount is the menu-item total only; no service
 charge is added. Selecting **Confirm Order** records the order and
-department-specific payment notifications for both QR and device orders. The
-admin dashboard updates its activity feed every eight seconds and shows the
-sender name, room, department, and items. After order confirmation, guests can
-open prefilled WhatsApp payment messages for the currently assigned department
-staff and tap **Send**; an authorized portal operator can also send from the
-dashboard. WhatsApp is not sent automatically; real automated delivery needs
-an official WhatsApp provider and its credentials/templates.
+department-specific notifications for both QR and device orders, then opens the
+first assigned staff member's prefilled WhatsApp message. Guests must tap
+**Send** in WhatsApp; additional department messages remain available on the
+home screen. The admin dashboard updates its activity feed every eight seconds
+and shows the sender name, room, department, and items. WhatsApp is not sent
+automatically; real automated delivery needs an official WhatsApp provider and
+its credentials/templates.
+
+## Staff order inbox and push
+
+Staff sign in at `/ordernotification` with the account created by their hotel
+administrator. The inbox shows only orders and service requests assigned to
+that staff member, and refreshes while open. Kitchen and Bar notifications
+follow their department assignments; Services requests follow the Services
+staff assignment configured by the administrator. To receive browser push
+alerts while the inbox is closed, generate VAPID keys from `admin_portal`:
+
+```powershell
+python manage.py generate_staff_push_keys
+```
+
+Set the printed `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY_B64`,
+and `WEB_PUSH_VAPID_SUBJECT` values in the deployment environment. Keep the
+private key secret and out of source control. Staff then sign in and choose
+**Enable push notifications** from the inbox. Without these deployment values,
+the inbox still receives updates while open but background push is unavailable.
 
 ## Admin portal and QR ordering
 
@@ -155,6 +174,9 @@ environment variables for Render:
 - `GUEST_ORDER_BASE_URL`: optional; otherwise QR codes use the public request URL.
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET`:
   configure Supabase Storage for persistent menu photos.
+- `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY_B64`, and
+  `WEB_PUSH_VAPID_SUBJECT`: optional; configure browser push for staff
+  notifications using the steps above.
 
 The container runs migrations before starting and serves `/health` for Render's
 health check. After deploying, use `/admin/manager-signup/` to create the first

@@ -10,4 +10,11 @@ urlpatterns = [
     path("orders/", api.create_order, name="api_create_order"),
     path("orders/<str:order_number>/", api.order_status, name="api_order_status"),
     path("service-requests/", api.create_service_request, name="api_create_service_request"),
+    path("staff/session/", api.staff_session, name="api_staff_session"),
+    path("staff/notifications/", api.staff_notifications, name="api_staff_notifications"),
+    path(
+        "staff/push-subscriptions/",
+        api.staff_push_subscription,
+        name="api_staff_push_subscription",
+    ),
 ]

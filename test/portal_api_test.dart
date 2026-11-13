@@ -33,6 +33,102 @@ void main() {
     );
   });
 
+  test('staff inbox uses the manager-created Django login', () async {
+    final api = PortalApi(
+      'https://hotel.example.test',
+      client: MockClient(
+        (_) async => http.Response(
+          '{"error":"Sign in to view staff notifications."}',
+          401,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
+    addTearDown(api.close);
+
+    expect(
+      api.staffLoginUri.toString(),
+      'https://hotel.example.test/admin/login/?next=%2Fordernotification',
+    );
+    expect(await api.loadStaffSession(), isNull);
+  });
+
+  test('loads assigned staff messages and registers browser push', () async {
+    final requests = <http.Request>[];
+    final api = PortalApi(
+      'https://hotel.example.test',
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/staff/session/')) {
+          return http.Response(
+            jsonEncode({
+              'username': 'kemi',
+              'name': 'Kemi Ade',
+              'department': 'Kitchen',
+              'push_enabled': true,
+              'push_public_key': 'public-key',
+              'csrf_token': 'csrf-value',
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/staff/notifications/')) {
+          return http.Response(
+            jsonEncode({
+              'notifications': [
+                {
+                  'id': 42,
+                  'type': 'order',
+                  'department': 'Kitchen',
+                  'title': 'New Kitchen order',
+                  'order_number': 'HDW-ABC123',
+                  'room': '101',
+                  'sender_name': 'Jane Customer',
+                  'total': '6500.00',
+                  'status': 'Pending',
+                  'payment_status': 'Pending',
+                  'items': [
+                    {'name': 'Jollof Rice', 'quantity': 1},
+                  ],
+                  'details': '',
+                  'created_at': '2026-11-13T14:01:00+00:00',
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{"status":"enabled"}', 200);
+      }),
+    );
+    addTearDown(api.close);
+
+    final session = await api.loadStaffSession();
+    expect(session?.username, 'kemi');
+    expect(session?.pushEnabled, isTrue);
+    expect(session?.pushPublicKey, 'public-key');
+
+    final notifications = await api.loadStaffNotifications();
+    expect(notifications.single.orderNumber, 'HDW-ABC123');
+    expect(notifications.single.items.single.name, 'Jollof Rice');
+    expect(notifications.single.room, '101');
+
+    await api.saveStaffPushSubscription(
+      csrfToken: session!.csrfToken,
+      subscription: {
+        'endpoint': 'https://fcm.googleapis.com/push/token',
+        'keys': {'p256dh': 'public', 'auth': 'auth'},
+      },
+    );
+    expect(requests.last.headers['X-CSRFToken'], 'csrf-value');
+    expect(
+      jsonDecode(requests.last.body)['subscription']['endpoint'],
+      'https://fcm.googleapis.com/push/token',
+    );
+  });
+
   test(
     'validates device, loads portal menu and submits paid order details',
     () async {

@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:device_demo/app.dart';
-import 'package:device_demo/models/order.dart';
-import 'package:device_demo/screens/order_screens.dart';
 import 'package:device_demo/services/portal_api.dart';
 import 'package:device_demo/screens/welcome_screens.dart';
 
@@ -78,6 +80,8 @@ void main() {
             onOpenRoom: () {},
             onOpenCart: () {},
             onOpenNotifications: () {},
+            nextWhatsAppDepartment: null,
+            onOpenNextWhatsApp: () {},
           ),
         ),
       ),
@@ -91,49 +95,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('order confirmation opens the assigned WhatsApp message', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(800, 480);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    String? openedLink;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ConfirmScreen(
-            orderNumber: 'HDW-ABC123',
-            lines: [CartLine(item: menuItems[1], quantity: 1)],
-            whatsappMessages: const [
-              PortalWhatsAppMessage(
-                department: 'Kitchen',
-                staffName: 'Kemi',
-                status: 'demo',
-                detail: 'Manual send required.',
-                url: 'https://wa.me/2348011112222?text=Payment',
-              ),
-            ],
-            onOpenWhatsApp: (link) async {
-              openedLink = link;
-            },
-            onBackHome: () {},
-          ),
-        ),
-      ),
-    );
-
-    final whatsappButton = find.text('Open WhatsApp');
-    await tester.ensureVisible(whatsappButton);
-    await tester.tap(whatsappButton);
-    await tester.pump();
-
-    expect(openedLink, 'https://wa.me/2348011112222?text=Payment');
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('staff can review payment message and confirm order', (
+  testWidgets('staff order confirmation stops when portal is unavailable', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -212,22 +174,167 @@ void main() {
     expect(find.text('Reception Dashboard'), findsNothing);
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm Order'));
     await tester.pumpAndSettle();
-    expect(find.text('Thank You!'), findsOneWidget);
-    expect(find.text('Your order will be confirmed shortly.'), findsOneWidget);
+    expect(find.text('Thank You!'), findsNothing);
+    expect(find.text('Payment message preview'), findsOneWidget);
     expect(
-      find.text('Please expect your order within the estimated time below.'),
+      find.text(
+        'The ordering portal is not connected. Your order was not submitted.',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Grilled Chicken × 1'), findsOneWidget);
-    expect(find.text('Jollof Rice × 1'), findsOneWidget);
-    expect(find.text('25 min'), findsNWidgets(2));
-    expect(find.text('Track Order'), findsNothing);
-    expect(find.text('Back to Home'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Back to Home'));
-    await tester.pumpAndSettle();
-    expect(find.text('${greetingForTime(DateTime.now())} 👋'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('staff notification link opens the authenticated staff inbox', (
+    tester,
+  ) async {
+    final api = PortalApi(
+      'https://example.test',
+      client: MockClient(
+        (_) async => http.Response(
+          '{"error":"Sign in to view staff notifications."}',
+          401,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    );
+    addTearDown(api.close);
+
+    await tester.pumpWidget(
+      HaidwareApp(
+        initialUri: Uri.parse('https://example.test/ordernotification'),
+        portalApi: api,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Staff Notifications'), findsOneWidget);
+    expect(find.text('Sign in to your staff inbox'), findsOneWidget);
+    expect(find.text('Staff sign in'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'confirmed order opens WhatsApp and keeps other departments queued',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final openedLinks = <Uri>[];
+      final api = PortalApi(
+        'https://example.test',
+        client: MockClient((request) async {
+          if (request.url.path.endsWith('/device/session/')) {
+            return http.Response(
+              jsonEncode({
+                'device_id': '123456',
+                'property': {'name': 'Demo Hotel'},
+                'room': '101',
+                'payment_details': {
+                  'bank_name': 'GTBank',
+                  'account_name': 'Demo Hotel',
+                  'account_number': '0123456789',
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.url.path.endsWith('/menu/')) {
+            return http.Response(
+              jsonEncode({
+                'items': [
+                  {
+                    'id': 42,
+                    'name': 'Jollof Rice',
+                    'description': 'Freshly prepared',
+                    'category': 'Main',
+                    'department': 'kitchen',
+                    'price': '5000.00',
+                    'preparation_minutes': 25,
+                    'image_url': '',
+                  },
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.url.path.endsWith('/services/')) {
+            return http.Response(
+              '{"services":[]}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'order_number': 'HDW-ABC123',
+              'whatsapp_messages': [
+                {
+                  'department': 'Kitchen',
+                  'staff_name': 'Kemi',
+                  'status': 'ready',
+                  'detail': 'Manual send required.',
+                  'whatsapp_url': 'https://wa.me/2348011112222?text=Kitchen',
+                },
+                {
+                  'department': 'Bar',
+                  'staff_name': 'Tunde',
+                  'status': 'ready',
+                  'detail': 'Manual send required.',
+                  'whatsapp_url': 'https://wa.me/2348022223333?text=Bar',
+                },
+              ],
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(api.close);
+
+      await tester.pumpWidget(
+        HaidwareApp(
+          initialUri: Uri.parse('https://example.test/?device_id=123456'),
+          portalApi: api,
+          launchWhatsApp: (url) async {
+            openedLinks.add(url);
+            return true;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kitchen'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Jollof Rice'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add to Cart'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Checkout'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'Jane Customer');
+      await tester.tap(find.text('I have paid'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm Order'));
+      await tester.pumpAndSettle();
+
+      expect(openedLinks, [
+        Uri.parse('https://wa.me/2348011112222?text=Kitchen'),
+      ]);
+      expect(find.text('Send the order message to Bar'), findsOneWidget);
+      expect(find.text('Thank You!'), findsNothing);
+      await tester.tap(find.text('Open WhatsApp'));
+      await tester.pumpAndSettle();
+      expect(openedLinks, [
+        Uri.parse('https://wa.me/2348011112222?text=Kitchen'),
+        Uri.parse('https://wa.me/2348022223333?text=Bar'),
+      ]);
+      expect(find.text('Send the order message to Bar'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('staff can clear notifications after signing in', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);

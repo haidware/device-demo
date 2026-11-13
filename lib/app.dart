@@ -10,6 +10,7 @@ import 'services/portal_api.dart';
 import 'screens/menu_screens.dart';
 import 'screens/order_screens.dart';
 import 'screens/service_screens.dart';
+import 'screens/staff_notifications_screen.dart';
 import 'screens/welcome_screens.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_widgets.dart';
@@ -23,25 +24,51 @@ String? scannedDeviceIdFromUri(Uri uri) {
 }
 
 class HaidwareApp extends StatelessWidget {
-  const HaidwareApp({super.key, this.initialUri});
+  const HaidwareApp({
+    super.key,
+    this.initialUri,
+    this.portalApi,
+    this.launchWhatsApp,
+  });
 
   final Uri? initialUri;
+  final PortalApi? portalApi;
+  final Future<bool> Function(Uri url)? launchWhatsApp;
 
   @override
   Widget build(BuildContext context) {
+    final uri = initialUri ?? Uri.base;
+    final apiBaseUrl = portalApiBaseUrl(
+      isWeb: kIsWeb,
+      currentUri: uri,
+      configuredBaseUrl: PortalApi.configuredBaseUrl,
+    );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Haidware Hospitality',
       theme: buildAppTheme(),
-      home: HospitalityOrderDemo(initialUri: initialUri),
+      home: uri.path.replaceFirst(RegExp(r'/$'), '') == '/ordernotification'
+          ? StaffNotificationsScreen(baseUrl: apiBaseUrl, api: portalApi)
+          : HospitalityOrderDemo(
+              initialUri: uri,
+              portalApi: portalApi,
+              launchWhatsApp: launchWhatsApp,
+            ),
     );
   }
 }
 
 class HospitalityOrderDemo extends StatefulWidget {
-  const HospitalityOrderDemo({super.key, this.initialUri});
+  const HospitalityOrderDemo({
+    super.key,
+    this.initialUri,
+    this.portalApi,
+    this.launchWhatsApp,
+  });
 
   final Uri? initialUri;
+  final PortalApi? portalApi;
+  final Future<bool> Function(Uri url)? launchWhatsApp;
 
   @override
   State<HospitalityOrderDemo> createState() => _HospitalityOrderDemoState();
@@ -54,7 +81,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   MenuItem _selectedItem = menuItems.first;
   List<MenuItem> _menuItems = menuItems;
   List<HospitalityService> _services = const [];
-  List<PortalWhatsAppMessage> _whatsappMessages = const [];
+  List<PortalWhatsAppMessage> _pendingWhatsAppMessages = const [];
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
   String _propertyName = '';
@@ -73,13 +100,15 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   String? _orderSubmissionError;
   bool _notificationsCleared = false;
   String _orderNumber = '#HDW-101-00045';
-  final PortalApi _portalApi = PortalApi(
-    portalApiBaseUrl(
-      isWeb: kIsWeb,
-      currentUri: Uri.base,
-      configuredBaseUrl: PortalApi.configuredBaseUrl,
-    ),
-  );
+  late final PortalApi _portalApi =
+      widget.portalApi ??
+      PortalApi(
+        portalApiBaseUrl(
+          isWeb: kIsWeb,
+          currentUri: Uri.base,
+          configuredBaseUrl: PortalApi.configuredBaseUrl,
+        ),
+      );
 
   @override
   void initState() {
@@ -176,14 +205,37 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           expectedTotal: _orderTotal,
         );
         if (!mounted) return;
+        final messages = submission.whatsappMessages
+            .where((message) => message.url.isNotEmpty)
+            .toList();
         setState(() {
           _orderNumber = submission.orderNumber;
-          _whatsappMessages = submission.whatsappMessages;
+          _pendingWhatsAppMessages = messages;
           _orderStatus = 1;
           _isSubmittingOrder = false;
-          _history.add(_page);
-          _page = AppPage.confirmation;
+          _cart.clear();
+          _history.clear();
+          _page = AppPage.home;
         });
+        if (messages.isNotEmpty) {
+          final firstMessage = messages.first;
+          final opened = await _openWhatsApp(firstMessage.url);
+          if (mounted) {
+            setState(() {
+              _pendingWhatsAppMessages = opened
+                  ? messages.skip(1).toList()
+                  : messages;
+            });
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Order submitted to the portal. No assigned WhatsApp contact is available.',
+              ),
+            ),
+          );
+        }
       } on PortalApiException catch (error) {
         if (!mounted) return;
         setState(() {
@@ -200,34 +252,39 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       }
       return;
     }
-    setState(() => _orderStatus = 1);
-    _navigate(AppPage.confirmation);
+    setState(() {
+      _isSubmittingOrder = false;
+      _orderSubmissionError =
+          'The ordering portal is not connected. Your order was not submitted.';
+    });
   }
 
-  Future<void> _openWhatsApp(String link) async {
+  Future<bool> _openWhatsApp(String link) async {
     try {
-      final opened = await launchUrl(
-        Uri.parse(link),
-        mode: LaunchMode.externalApplication,
-      );
-      if (opened || !mounted) return;
+      final url = Uri.parse(link);
+      final opened = widget.launchWhatsApp != null
+          ? await widget.launchWhatsApp!(url)
+          : await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (opened || !mounted) return opened;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
+      return false;
     } on PlatformException {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
+      return false;
     }
   }
 
-  void _backHome() {
-    setState(() {
-      _cart.clear();
-      _history.clear();
-      _page = AppPage.home;
-    });
+  Future<void> _openNextWhatsApp() async {
+    if (_pendingWhatsAppMessages.isEmpty) return;
+    final message = _pendingWhatsAppMessages.first;
+    if (await _openWhatsApp(message.url) && mounted) {
+      setState(() => _pendingWhatsAppMessages.removeAt(0));
+    }
   }
 
   void _navigate(AppPage page) {
@@ -319,6 +376,10 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           onOpenRoom: () => go(AppPage.staffAccess),
           onOpenCart: () => go(AppPage.cart),
           onOpenNotifications: () => go(AppPage.notifications),
+          nextWhatsAppDepartment: _pendingWhatsAppMessages.isEmpty
+              ? null
+              : _pendingWhatsAppMessages.first.department,
+          onOpenNextWhatsApp: _openNextWhatsApp,
         );
       case AppPage.kitchen:
         return KitchenScreen(
@@ -385,14 +446,6 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           isSubmitting: _isSubmittingOrder,
           errorMessage: _orderSubmissionError,
           onBack: back,
-        );
-      case AppPage.confirmation:
-        return ConfirmScreen(
-          orderNumber: _orderNumber,
-          lines: _cartLines,
-          whatsappMessages: _whatsappMessages,
-          onOpenWhatsApp: _openWhatsApp,
-          onBackHome: _backHome,
         );
       case AppPage.tracking:
         return TrackScreen(

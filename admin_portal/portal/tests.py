@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from decimal import Decimal
@@ -25,6 +26,7 @@ from .models import (
     ServiceRequest,
     ShiftAssignment,
     StaffProfile,
+    StaffPushSubscription,
     WhatsAppAttempt,
 )
 from .whatsapp_links import order_notification_text, whatsapp_link, whatsapp_number
@@ -125,6 +127,7 @@ class PortalFlowTests(TestCase):
     def test_admin_entry_and_qr_order_use_public_routes(self):
         self.assertEqual(reverse("dashboard"), "/admin/dashboard/")
         self.assertEqual(reverse("guest_order"), "/guest-order/")
+        self.assertEqual(reverse("staff_notifications_app"), "/ordernotification")
 
         response = self.client.get("/admin/")
 
@@ -1129,6 +1132,258 @@ class PortalFlowTests(TestCase):
         order_detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(order_detail, "Order total")
         self.assertNotContains(order_detail, "Service charge")
+
+    def test_staff_inbox_is_authenticated_and_scoped_to_assigned_department(self):
+        bar_item = MenuItem.objects.create(
+            property=self.property,
+            name="Mango Mocktail",
+            department="bar",
+            category="Drinks",
+            price=Decimal("3000.00"),
+        )
+        kitchen_user = User.objects.create_user(username="kitchen.staff", password="x")
+        bar_user = User.objects.create_user(username="bar.staff", password="x")
+        kitchen_staff = StaffProfile.objects.create(
+            user=kitchen_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+            phone_number="+234 801 111 2222",
+        )
+        bar_staff = StaffProfile.objects.create(
+            user=bar_user,
+            property=self.property,
+            role="bar_staff",
+            departments="Bar",
+            phone_number="+234 802 333 4444",
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="kitchen",
+            staff=kitchen_staff,
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="bar",
+            staff=bar_staff,
+        )
+        order_response = self.client.post(
+            reverse("api_create_order"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "sender_name": "Jane Customer",
+                    "expected_total": 8000,
+                    "items": [
+                        {"item_id": self.item.pk, "quantity": 1},
+                        {"item_id": bar_item.pk, "quantity": 1},
+                    ],
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(order_response.status_code, 201)
+        self.assertEqual(
+            self.client.get(reverse("api_staff_notifications")).status_code, 401
+        )
+
+        self.client.force_login(kitchen_user)
+        session = self.client.get(reverse("api_staff_session"))
+        self.assertEqual(session.status_code, 200)
+        self.assertEqual(session.json()["username"], "kitchen.staff")
+        kitchen_notifications = self.client.get(
+            reverse("api_staff_notifications")
+        ).json()["notifications"]
+        self.assertEqual(len(kitchen_notifications), 1)
+        self.assertEqual(kitchen_notifications[0]["department"], "Kitchen")
+        self.assertEqual(kitchen_notifications[0]["items"][0]["name"], "Jollof Rice")
+        self.assertNotIn(
+            "Mango Mocktail",
+            [item["name"] for item in kitchen_notifications[0]["items"]],
+        )
+
+        self.client.force_login(bar_user)
+        bar_notifications = self.client.get(
+            reverse("api_staff_notifications")
+        ).json()["notifications"]
+        self.assertEqual(len(bar_notifications), 1)
+        self.assertEqual(bar_notifications[0]["department"], "Bar")
+        self.assertEqual(bar_notifications[0]["items"][0]["name"], "Mango Mocktail")
+
+    def test_services_requests_are_delivered_to_admin_assigned_services_staff(self):
+        staff_user = User.objects.create_user(username="services.staff", password="x")
+        services_staff = StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="handler",
+            departments="Services",
+            phone_number="+234 801 111 2222",
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="services",
+            staff=services_staff,
+        )
+        service = ServiceOption.objects.create(
+            property=self.property,
+            name="Fresh Towels",
+            department="housekeeping",
+        )
+        request_response = self.client.post(
+            reverse("api_create_service_request"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "service_id": service.pk,
+                    "details": "Please bring two towels.",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(request_response.status_code, 201)
+        self.client.force_login(staff_user)
+
+        notifications = self.client.get(
+            reverse("api_staff_notifications")
+        ).json()["notifications"]
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0]["type"], "service")
+        self.assertEqual(notifications[0]["title"], "Fresh Towels")
+        self.assertEqual(notifications[0]["details"], "Please bring two towels.")
+
+    @override_settings(
+        WEB_PUSH_VAPID_PUBLIC_KEY="public",
+        WEB_PUSH_VAPID_PRIVATE_KEY_B64="cHJpdmF0ZQ==",
+        WEB_PUSH_VAPID_SUBJECT="mailto:ops@example.test",
+    )
+    def test_order_sends_push_to_registered_assigned_staff(self):
+        staff_user = User.objects.create_user(username="push.staff", password="x")
+        staff = StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+            phone_number="+234 801 111 2222",
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="kitchen",
+            staff=staff,
+        )
+        StaffPushSubscription.objects.create(
+            staff=staff,
+            endpoint="https://fcm.googleapis.com/push/token",
+            p256dh="p256dh",
+            auth="auth",
+        )
+
+        with patch("portal.push_notifications.webpush") as send_push:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    reverse("api_create_order"),
+                    data=json.dumps(
+                        {
+                            "device_id": self.device.device_id,
+                            "sender_name": "Jane Customer",
+                            "expected_total": 5000,
+                            "items": [{"item_id": self.item.pk, "quantity": 1}],
+                        }
+                    ),
+                    content_type="application/json",
+                )
+
+        self.assertEqual(response.status_code, 201)
+        send_push.assert_called_once()
+        payload = json.loads(send_push.call_args.kwargs["data"])
+        self.assertEqual(payload["url"], "/ordernotification")
+        self.assertIn("Kitchen order", payload["title"])
+
+    @override_settings(
+        WEB_PUSH_VAPID_PUBLIC_KEY="public",
+        WEB_PUSH_VAPID_PRIVATE_KEY_B64="cHJpdmF0ZQ==",
+        WEB_PUSH_VAPID_SUBJECT="mailto:ops@example.test",
+    )
+    def test_staff_can_register_a_valid_csrf_protected_push_subscription(self):
+        staff_user = User.objects.create_user(username="push.staff", password="x")
+        staff = StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+        )
+        staff_client = Client(enforce_csrf_checks=True)
+        staff_client.force_login(staff_user)
+        session_response = staff_client.get(reverse("api_staff_session"))
+        csrf_token = session_response.json()["csrf_token"]
+        public_key = base64.urlsafe_b64encode(
+            b"\x04" + b"k" * 64
+        ).decode().rstrip("=")
+        auth_key = base64.urlsafe_b64encode(b"a" * 16).decode().rstrip("=")
+
+        response = staff_client.post(
+            reverse("api_staff_push_subscription"),
+            data=json.dumps(
+                {
+                    "subscription": {
+                        "endpoint": "https://fcm.googleapis.com/fcm/send/token",
+                        "keys": {"p256dh": public_key, "auth": auth_key},
+                    }
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            StaffPushSubscription.objects.get().staff,
+            staff,
+        )
+
+    @override_settings(
+        WEB_PUSH_VAPID_PUBLIC_KEY="public",
+        WEB_PUSH_VAPID_PRIVATE_KEY_B64="cHJpdmF0ZQ==",
+        WEB_PUSH_VAPID_SUBJECT="mailto:ops@example.test",
+    )
+    def test_push_subscription_rejects_non_push_service_endpoints(self):
+        staff_user = User.objects.create_user(username="push.staff", password="x")
+        StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+        )
+        self.client.force_login(staff_user)
+
+        for endpoint in (
+            "https://attacker.example/push",
+            "https://fcm.googleapis.com:444/push/token",
+        ):
+            with self.subTest(endpoint=endpoint):
+                response = self.client.post(
+                    reverse("api_staff_push_subscription"),
+                    data=json.dumps(
+                        {
+                            "subscription": {
+                                "endpoint": endpoint,
+                                "keys": {
+                                    "p256dh": "BM" + "A" * 87,
+                                    "auth": "A" * 22,
+                                },
+                            }
+                        }
+                    ),
+                    content_type="application/json",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json()["error"], "Push subscription is invalid."
+                )
 
     def test_order_notification_message_contains_sender_and_department_items(self):
         bar_item = MenuItem.objects.create(

@@ -26,6 +26,11 @@ urlpatterns = [
         RedirectView.as_view(pattern_name="command_center", permanent=False),
     ),
     re_path(r"^commandcenter/?$", views.command_center, name="command_center"),
+    re_path(
+        r"^ordernotification/?$",
+        flutter_home,
+        name="staff_notifications_app",
+    ),
     path(
         "commandcenter/generate-id/",
         views.command_center_generate_id,

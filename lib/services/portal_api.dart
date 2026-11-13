@@ -72,6 +72,66 @@ class PortalOrderSubmission {
   final List<PortalWhatsAppMessage> whatsappMessages;
 }
 
+class PortalStaffSession {
+  const PortalStaffSession({
+    required this.username,
+    required this.name,
+    required this.department,
+    required this.pushEnabled,
+    required this.pushPublicKey,
+    required this.csrfToken,
+  });
+
+  final String username;
+  final String name;
+  final String department;
+  final bool pushEnabled;
+  final String pushPublicKey;
+  final String csrfToken;
+}
+
+class PortalStaffNotification {
+  const PortalStaffNotification({
+    required this.id,
+    required this.type,
+    required this.department,
+    required this.title,
+    required this.orderNumber,
+    required this.room,
+    required this.senderName,
+    required this.total,
+    required this.status,
+    required this.paymentStatus,
+    required this.items,
+    required this.details,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String type;
+  final String department;
+  final String title;
+  final String orderNumber;
+  final String room;
+  final String senderName;
+  final String total;
+  final String status;
+  final String paymentStatus;
+  final List<PortalStaffNotificationItem> items;
+  final String details;
+  final DateTime createdAt;
+}
+
+class PortalStaffNotificationItem {
+  const PortalStaffNotificationItem({
+    required this.name,
+    required this.quantity,
+  });
+
+  final String name;
+  final int quantity;
+}
+
 class PortalApi {
   PortalApi(String baseUrl, {http.Client? client})
     : _baseUrl = baseUrl.replaceFirst(RegExp(r'/$'), ''),
@@ -239,11 +299,79 @@ class PortalApi {
     );
   }
 
+  Uri get staffLoginUri => _uri(
+    '/admin/login/',
+  ).replace(queryParameters: {'next': '/ordernotification'});
+
+  Future<PortalStaffSession?> loadStaffSession() async {
+    final response = await _send(
+      _client.get(_uri('/api/v1/staff/session/')),
+      allowUnauthorized: true,
+    );
+    if (response.statusCode == 401) return null;
+    final data = _decodeObject(response);
+    final username = data['username'];
+    final name = data['name'];
+    final department = data['department'];
+    final pushEnabled = data['push_enabled'];
+    final pushPublicKey = data['push_public_key'];
+    final csrfToken = data['csrf_token'];
+    if (username is! String ||
+        name is! String ||
+        department is! String ||
+        pushEnabled is! bool ||
+        pushPublicKey is! String ||
+        csrfToken is! String) {
+      throw const PortalApiException(
+        'The portal returned an invalid staff session.',
+      );
+    }
+    return PortalStaffSession(
+      username: username,
+      name: name,
+      department: department,
+      pushEnabled: pushEnabled,
+      pushPublicKey: pushPublicKey,
+      csrfToken: csrfToken,
+    );
+  }
+
+  Future<List<PortalStaffNotification>> loadStaffNotifications() async {
+    final response = await _send(
+      _client.get(_uri('/api/v1/staff/notifications/')),
+    );
+    final data = _decodeObject(response);
+    final rawNotifications = data['notifications'];
+    if (rawNotifications is! List) {
+      throw const PortalApiException(
+        'The portal returned an invalid staff notification list.',
+      );
+    }
+    return rawNotifications.map(_staffNotificationFromJson).toList();
+  }
+
+  Future<void> saveStaffPushSubscription({
+    required String csrfToken,
+    required Map<String, Object?> subscription,
+  }) async {
+    await _send(
+      _client.post(
+        _uri('/api/v1/staff/push-subscriptions/'),
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+        body: jsonEncode({'subscription': subscription}),
+      ),
+    );
+  }
+
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
-  Future<http.Response> _send(Future<http.Response> request) async {
+  Future<http.Response> _send(
+    Future<http.Response> request, {
+    bool allowUnauthorized = false,
+  }) async {
     try {
       final response = await request.timeout(const Duration(seconds: 12));
+      if (allowUnauthorized && response.statusCode == 401) return response;
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final data = _tryDecodeObject(response.body);
         final message = data?['error'];
@@ -282,6 +410,78 @@ class PortalApi {
     } on FormatException {
       return null;
     }
+  }
+
+  PortalStaffNotification _staffNotificationFromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const PortalApiException(
+        'The portal returned an invalid staff notification.',
+      );
+    }
+    final id = value['id'];
+    final type = value['type'];
+    final department = value['department'];
+    final title = value['title'];
+    final orderNumber = value['order_number'];
+    final room = value['room'];
+    final senderName = value['sender_name'];
+    final total = value['total'];
+    final status = value['status'];
+    final paymentStatus = value['payment_status'];
+    final rawItems = value['items'];
+    final details = value['details'];
+    final createdAtValue = value['created_at'];
+    if (id is! int ||
+        (type != 'order' && type != 'service') ||
+        department is! String ||
+        title is! String ||
+        orderNumber is! String ||
+        room is! String ||
+        senderName is! String ||
+        total is! String ||
+        status is! String ||
+        paymentStatus is! String ||
+        rawItems is! List ||
+        details is! String ||
+        createdAtValue is! String) {
+      throw const PortalApiException(
+        'The portal returned an invalid staff notification.',
+      );
+    }
+    final createdAt = DateTime.tryParse(createdAtValue);
+    if (createdAt == null) {
+      throw const PortalApiException(
+        'The portal returned an invalid notification timestamp.',
+      );
+    }
+    final items = rawItems.map((item) {
+      if (item is! Map<String, dynamic> ||
+          item['name'] is! String ||
+          item['quantity'] is! int) {
+        throw const PortalApiException(
+          'The portal returned an invalid notification item.',
+        );
+      }
+      return PortalStaffNotificationItem(
+        name: item['name'] as String,
+        quantity: item['quantity'] as int,
+      );
+    }).toList();
+    return PortalStaffNotification(
+      id: id,
+      type: type,
+      department: department,
+      title: title,
+      orderNumber: orderNumber,
+      room: room,
+      senderName: senderName,
+      total: total,
+      status: status,
+      paymentStatus: paymentStatus,
+      items: items,
+      details: details,
+      createdAt: createdAt,
+    );
   }
 
   MenuItem _menuItemFromJson(Object? value) {
