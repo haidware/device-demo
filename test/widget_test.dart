@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,34 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('QR launch shows a spinner while the room is loading', (
+    tester,
+  ) async {
+    final pendingResponse = Completer<http.Response>();
+    final api = PortalApi(
+      'https://example.test',
+      client: MockClient((_) => pendingResponse.future),
+    );
+    addTearDown(api.close);
+
+    await tester.pumpWidget(
+      HaidwareApp(
+        initialUri: Uri.parse('https://example.test/?device_id=123456'),
+        portalApi: api,
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Opening Room 101…'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    pendingResponse.complete(
+      http.Response('{"error":"Device not found."}', 404),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('homepage always shows kitchen, bar and services options', (
