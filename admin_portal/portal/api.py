@@ -18,10 +18,13 @@ from .models import (
     MenuItem,
     Order,
     OrderLine,
+    ROUTING_DEPARTMENTS,
     ServiceOption,
     ServiceRequest,
+    WhatsAppAttempt,
 )
 from .routing import _record_routing_attempts
+from .whatsapp_links import order_notification_text, whatsapp_link
 
 MAX_MENU_IMAGE_BYTES = 5 * 1024 * 1024
 MENU_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -286,6 +289,47 @@ def create_order(request):
                 preparation_minutes=item.preparation_minutes,
             )
         _record_routing_attempts(order=order)
+    whatsapp_messages = []
+    for attempt in WhatsAppAttempt.objects.select_related("staff__user").filter(
+        order=order
+    ):
+        active_staff = (
+            attempt.staff
+            and attempt.staff.active
+            and attempt.staff.user.is_active
+        )
+        whatsapp_url = (
+            whatsapp_link(
+                attempt.recipient_number,
+                order_notification_text(order, attempt.department),
+            )
+            if active_staff and attempt.status in {"demo", "disabled"}
+            else ""
+        )
+        whatsapp_messages.append(
+            {
+                "department": dict(ROUTING_DEPARTMENTS).get(
+                    attempt.department, attempt.department.title()
+                ),
+                "staff_name": (
+                    attempt.staff.user.get_full_name()
+                    or attempt.staff.user.get_username()
+                    if attempt.staff
+                    else ""
+                ),
+                "status": attempt.status,
+                "detail": (
+                    "Open WhatsApp and tap Send. No message is sent automatically."
+                    if whatsapp_url
+                    else (
+                        "Assigned staff WhatsApp number is invalid."
+                        if attempt.status in {"demo", "disabled"} and active_staff
+                        else attempt.detail
+                    )
+                ),
+                "whatsapp_url": whatsapp_url,
+            }
+        )
     return JsonResponse(
         {
             "order_number": order.order_number,
@@ -301,6 +345,7 @@ def create_order(request):
                 }
                 for line in order.lines.all()
             ],
+            "whatsapp_messages": whatsapp_messages,
         },
         status=201,
     )

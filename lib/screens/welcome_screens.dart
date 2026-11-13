@@ -316,21 +316,31 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  '${greetingForTime(DateTime.now())} 👋',
+                const SizedBox(height: 8),
+                const Text(
+                  'A STAY, BEAUTIFULLY SERVED',
                   style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.gold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'What would you like to order?',
-                  style: TextStyle(color: AppColors.muted, fontSize: 17),
+                const SizedBox(height: 2),
+                Text(
+                  '${greetingForTime(DateTime.now())} 👋',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontFamily: 'serif',
+                    fontSize: 28,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const SizedBox(height: 18),
+                const Text(
+                  'How may we make your experience exceptional?',
+                  style: TextStyle(color: AppColors.muted, fontSize: 14),
+                ),
+                const SizedBox(height: 12),
                 Expanded(
                   child: Row(
                     children: [
@@ -347,7 +357,7 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: _CategoryCard(
                           title: 'Bar',
-                          subtitle: 'Drinks & more',
+                          subtitle: 'Signature drinks & moments',
                           icon: Icons.local_bar,
                           onTap: onOpenBar,
                           variant: 1,
@@ -357,7 +367,7 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: _CategoryCard(
                           title: 'Services',
-                          subtitle: 'Guest assistance',
+                          subtitle: 'Considered care, on request',
                           icon: Icons.room_service_outlined,
                           onTap: onOpenServices,
                           variant: 2,
@@ -366,62 +376,18 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: InkWell(
-                    onTap: onOpenServices,
-                    borderRadius: BorderRadius.circular(10),
-                    child: const InfoPanel(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 13,
+                const Padding(
+                  padding: EdgeInsets.only(top: 9),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.circle, color: AppColors.gold, size: 6),
+                      SizedBox(width: 8),
+                      Text(
+                        'Your comfort is our priority',
+                        style: TextStyle(color: AppColors.muted, fontSize: 11),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.room_service_outlined,
-                            color: AppColors.gold,
-                            size: 27,
-                          ),
-                          SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Need assistance?',
-                                  style: TextStyle(
-                                    color: AppColors.goldLight,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  'Request a service for your room or table',
-                                  style: TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            'View services',
-                            style: TextStyle(
-                              color: AppColors.text,
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(width: 6),
-                          Icon(
-                            Icons.arrow_forward,
-                            color: AppColors.gold,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -512,21 +478,65 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = switch (variant) {
+      0 => const Color(0xFFB98845),
+      1 => const Color(0xFF8F9DA8),
+      _ => const Color(0xFFD4B77A),
+    };
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [const Color(0xFF1B1B1A), AppColors.surface],
+          ),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FoodIllustration(variant: variant)),
             Padding(
-              padding: const EdgeInsets.fromLTRB(13, 9, 13, 11),
+              padding: const EdgeInsets.fromLTRB(13, 12, 13, 0),
+              child: Row(
+                children: [
+                  Text(
+                    '0${variant + 1}  /  ${switch (variant) {
+                      0 => 'DINING',
+                      1 => 'DRINKS',
+                      _ => 'CONCIERGE',
+                    }}',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_outward, color: accent, size: 17),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withValues(alpha: 0.09),
+                    border: Border.all(color: accent.withValues(alpha: 0.45)),
+                  ),
+                  child: Icon(icon, color: accent, size: 35),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
               child: Row(
                 children: [
                   Expanded(
@@ -537,31 +547,23 @@ class _CategoryCard extends StatelessWidget {
                           title,
                           style: const TextStyle(
                             color: AppColors.text,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w600,
+                            fontFamily: 'serif',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                        const SizedBox(height: 3),
                         Text(
                           subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.muted,
-                            fontSize: 13,
+                            fontSize: 10,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.12),
-                      border: Border.all(
-                        color: AppColors.gold.withValues(alpha: 0.24),
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, color: AppColors.gold, size: 25),
                   ),
                 ],
               ),

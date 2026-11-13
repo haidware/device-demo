@@ -3,6 +3,7 @@ import os
 from decimal import Decimal
 from io import BytesIO
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -716,6 +717,8 @@ class PortalFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "guest-order.js")
         self.assertContains(response, self.device.device_id)
+        self.assertContains(response, reverse("api_device_services"))
+        self.assertContains(response, reverse("api_create_service_request"))
 
     def test_device_session_returns_registered_device(self):
         self.property.property_name = "Demo Hotel"
@@ -1225,8 +1228,32 @@ class PortalFlowTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(order_response.status_code, 201)
-        self.assertNotIn("2348011112222", order_response.content.decode())
-        self.assertNotIn("2348023334444", order_response.content.decode())
+        whatsapp_messages = order_response.json()["whatsapp_messages"]
+        self.assertEqual(
+            {message["department"] for message in whatsapp_messages},
+            {"Kitchen", "Bar"},
+        )
+        messages_by_department = {
+            message["department"]: message for message in whatsapp_messages
+        }
+        self.assertIn(
+            "https://wa.me/2348011112222?",
+            messages_by_department["Kitchen"]["whatsapp_url"],
+        )
+        self.assertIn(
+            "https://wa.me/2348023334444?",
+            messages_by_department["Bar"]["whatsapp_url"],
+        )
+        kitchen_message = parse_qs(
+            urlsplit(messages_by_department["Kitchen"]["whatsapp_url"]).query
+        )["text"][0]
+        self.assertIn("Sender name: Jane Customer", kitchen_message)
+        self.assertIn("Kitchen items: Jollof Rice x1", kitchen_message)
+        self.assertNotIn("Mango Mocktail", kitchen_message)
+        self.assertIn(
+            "Please check and confirm the payment with reception.",
+            kitchen_message,
+        )
         self.client.force_login(self.admin)
 
         dashboard = self.client.get(reverse("dashboard"))
@@ -1240,6 +1267,46 @@ class PortalFlowTests(TestCase):
         self.assertContains(activity, "Jollof Rice")
         self.assertContains(activity, "Mango Mocktail")
         self.assertContains(activity, "Open WhatsApp to send")
+
+    def test_guest_order_keeps_manual_whatsapp_when_routing_is_disabled(self):
+        staff_user = User.objects.create_user(
+            username="manual.staff",
+            password="Strong-Staff-Passphrase-2891",
+        )
+        staff = StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+            phone_number="+234 801 111 2222",
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="kitchen",
+            staff=staff,
+        )
+        self.property.whatsapp_enabled = False
+        self.property.save(update_fields=["whatsapp_enabled"])
+
+        response = self.client.post(
+            reverse("api_create_order"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "sender_name": "Jane Customer",
+                    "expected_total": 5500,
+                    "items": [{"item_id": self.item.pk, "quantity": 1}],
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        message = response.json()["whatsapp_messages"][0]
+        self.assertEqual(message["status"], "disabled")
+        self.assertTrue(message["whatsapp_url"].startswith("https://wa.me/"))
+        self.assertIn("tap Send", message["detail"])
 
     def test_dashboard_activity_requires_an_operations_login(self):
         response = self.client.get(reverse("dashboard_activity"))
@@ -1262,6 +1329,11 @@ class PortalFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(OrderLine.objects.get().unit_price, Decimal("5000.00"))
+        message = response.json()["whatsapp_messages"][0]
+        self.assertEqual(message["department"], "Kitchen")
+        self.assertEqual(message["status"], "failed")
+        self.assertEqual(message["whatsapp_url"], "")
+        self.assertIn("No active staff contact", message["detail"])
 
     def test_rejects_order_when_paid_total_no_longer_matches_menu(self):
         response = self.client.post(

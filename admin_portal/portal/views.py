@@ -708,6 +708,8 @@ def guest_order(request):
                 "device_id": request.GET.get("device_id", ""),
                 "session_url": reverse("api_device_session"),
                 "menu_url": reverse("api_device_menu"),
+                "services_url": reverse("api_device_services"),
+                "service_requests_url": reverse("api_create_service_request"),
                 "orders_url": reverse("api_create_order"),
             }
         },

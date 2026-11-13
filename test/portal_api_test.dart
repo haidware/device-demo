@@ -101,7 +101,19 @@ void main() {
           );
         }
         return http.Response(
-          jsonEncode({'order_number': 'HDW-ABC123'}),
+          jsonEncode({
+            'order_number': 'HDW-ABC123',
+            'whatsapp_messages': [
+              {
+                'department': 'Kitchen',
+                'staff_name': 'Kemi',
+                'status': 'demo',
+                'detail': 'Manual send required.',
+                'whatsapp_url':
+                    'https://wa.me/2348011112222?text=Payment%20details',
+              },
+            ],
+          }),
           201,
           headers: {'content-type': 'application/json'},
         );
@@ -137,13 +149,19 @@ void main() {
         'service_id': 7,
       });
 
-      final orderNumber = await api.submitOrder(
+      final submission = await api.submitOrder(
         deviceId: '123456',
         senderName: 'Jane Customer',
         lines: [CartLine(item: session.menuItems.single, quantity: 2)],
         expectedTotal: 11000,
       );
-      expect(orderNumber, 'HDW-ABC123');
+      expect(submission.orderNumber, 'HDW-ABC123');
+      expect(submission.whatsappMessages.single.department, 'Kitchen');
+      expect(submission.whatsappMessages.single.staffName, 'Kemi');
+      expect(
+        submission.whatsappMessages.single.url,
+        'https://wa.me/2348011112222?text=Payment%20details',
+      );
       final orderBody = jsonDecode(requests.last.body) as Map<String, dynamic>;
       expect(orderBody['sender_name'], 'Jane Customer');
       expect(orderBody['expected_total'], 11000);

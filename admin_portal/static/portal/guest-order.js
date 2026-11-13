@@ -9,6 +9,11 @@
     room: "",
     bank: {},
     items: [],
+    services: [],
+    requestingServiceId: null,
+    serviceMessage: "",
+    serviceError: "",
+    whatsappMessages: [],
     department: "kitchen",
     category: "All",
     selectedItem: null,
@@ -38,11 +43,18 @@
   };
   const departmentIcon = (department) => {
     const icons = {
-      kitchen: '<path d="M3 20h18M5 17h14l-1.5-6h-11L5 17Zm7-13v2m-5.5.5 1.4 1.4m11.2-1.4-1.4 1.4M4 10h16"/>',
-      bar: '<path d="M3 4h18l-8 9v5l4 2H7l4-2v-5L3 4Zm8 5h8m-4-5-1 5"/>',
+      kitchen: '<path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18m10-18v18m0-18c0 3 3 4 3 7v2h-3"/>',
+      bar: '<path d="M3 4h18l-8 9v5l4 2H7l4-2V13L3 4Zm6 5h10"/>',
+      services: '<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 22h4M12 2V1"/>',
     };
     return `<svg class="guest-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[department]}</svg>`;
   };
+  const departmentCard = ({ category, number, title, description }) => `
+    <button class="guest-department department-${category}" data-action="department" data-department="${category}">
+      <span class="guest-department-top"><span>${number} / ${category === "services" ? "CONCIERGE" : category.toUpperCase()}</span><span class="guest-department-arrow">↗</span></span>
+      <span class="guest-department-visual">${departmentIcon(category)}</span>
+      <span class="guest-department-copy"><strong>${title}</strong><span>${description}</span></span>
+    </button>`;
   const cartLines = () => state.items
     .filter((item) => state.cart.has(String(item.id)))
     .map((item) => ({ item, quantity: state.cart.get(String(item.id)) }));
@@ -86,29 +98,34 @@
   }
 
   function renderHome() {
-    const hasKitchen = state.items.some((item) => item.department === "kitchen");
-    const hasBar = state.items.some((item) => item.department === "bar");
-    const cards = [];
-    if (hasKitchen) cards.push(`<button class="guest-department" data-action="department" data-department="kitchen">
-      ${art(0)}<span class="guest-department-copy"><span><strong>Kitchen</strong><br><span>Delicious meals</span></span>${departmentIcon("kitchen")}</span>
-    </button>`);
-    if (hasBar) cards.push(`<button class="guest-department" data-action="department" data-department="bar">
-      ${art(1)}<span class="guest-department-copy"><span><strong>Bar</strong><br><span>Drinks &amp; more</span></span>${departmentIcon("bar")}</span>
-    </button>`);
+    const cards = [
+      departmentCard({
+        category: "kitchen",
+        number: "01",
+        title: "Kitchen",
+        description: "Thoughtfully prepared dining",
+      }),
+      departmentCard({
+        category: "bar",
+        number: "02",
+        title: "Bar",
+        description: "Signature drinks & moments",
+      }),
+      departmentCard({
+        category: "services",
+        number: "03",
+        title: "Guest Services",
+        description: "Considered care, on request",
+      }),
+    ];
     return `<section class="guest-screen">
       <header class="guest-topbar">
-        <span class="guest-location">${escapeHtml(state.room || "HAIDWARE")} ⌄</span>
+        <span class="guest-location"><span class="guest-property-name">${escapeHtml(state.propertyName || "HAIDWARE HOSPITALITY")}</span><span>${escapeHtml(state.room || "Your location")}</span></span>
         <span class="guest-tools">${cartButton()}</span>
       </header>
-      ${state.propertyName ? `<p class="guest-property-name">${escapeHtml(state.propertyName)}</p>` : ""}
-      <h1 class="guest-greeting">${greeting()} 👋</h1>
-      <p class="guest-subtitle">What would you like to order?</p>
-      ${cards.length
-        ? `<div class="guest-departments">${cards.join("")}</div>`
-        : `<div class="guest-center"><p class="guest-empty-title">No food or drink menus are available right now.</p></div>`}
-      ${hasKitchen ? `<button class="guest-offer" data-action="department" data-department="kitchen">
-        <span class="guest-offer-icon">◇</span><span><strong>Special Offer</strong><small>10% off selected items</small></span><span class="guest-offer-tail">View all&nbsp; ›</span>
-      </button>` : ""}
+      <div class="guest-home-intro"><p class="guest-eyebrow">A STAY, BEAUTIFULLY SERVED</p><h1 class="guest-greeting">${greeting()} 👋</h1><p class="guest-subtitle">How may we make your experience exceptional?</p></div>
+      <div class="guest-departments">${cards.join("")}</div>
+      <p class="guest-home-footnote"><span></span> Your comfort is our priority</p>
     </section>`;
   }
 
@@ -204,6 +221,13 @@
   }
 
   function renderConfirmation() {
+    const messages = state.whatsappMessages.map((message) => `
+      <article class="guest-whatsapp-message">
+        <span><strong>${escapeHtml(message.department)}</strong>${message.staff_name ? `<small>Assigned to ${escapeHtml(message.staff_name)}</small>` : ""}</span>
+        ${message.whatsapp_url
+          ? `<a class="guest-whatsapp-button" href="${escapeHtml(message.whatsapp_url)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">↗</span> Open WhatsApp</a>`
+          : `<small class="guest-whatsapp-status">${escapeHtml(message.detail || "No WhatsApp contact is assigned.")}</small>`}
+      </article>`).join("");
     return `<section class="guest-screen guest-stack guest-confirm">
       <div class="guest-check" aria-hidden="true">✓</div>
       <h1 class="guest-thanks">Thank You!</h1>
@@ -214,7 +238,28 @@
       <div class="guest-panel guest-confirm-lines">
         ${state.orderLines.map((line) => `<div class="guest-confirm-line"><span>${escapeHtml(line.name)} × ${Number(line.quantity) || 0}</span><strong>${timeLabel(line.preparation_minutes)}</strong></div>`).join("")}
       </div>
+      <section class="guest-whatsapp-panel">
+        <div><h2>Send your payment message</h2><p>Open WhatsApp and tap Send to notify your assigned team. Messages are not sent automatically.</p></div>
+        ${messages || `<p class="guest-whatsapp-status">No WhatsApp staff contact is configured. Please contact reception to confirm your payment.</p>`}
+      </section>
       ${button("Back to Home", "home")}
+    </section>`;
+  }
+
+  function renderServices() {
+    return `<section class="guest-screen guest-stack">
+      ${panelHeader("Guest Services")}
+      <p class="guest-services-intro">A little extra care, whenever you need it.</p>
+      <div class="guest-services-list">
+        ${state.services.length ? state.services.map((service) => `
+          <article class="guest-service-card">
+            ${departmentIcon("services")}
+            <span><strong>${escapeHtml(service.name)}</strong><small>${escapeHtml(service.description || service.department)}</small></span>
+            <button class="guest-service-request" data-action="request-service" data-service-id="${Number(service.id)}" ${state.requestingServiceId !== null ? "disabled" : ""}>${state.requestingServiceId === service.id ? "Requesting…" : "Request"}</button>
+          </article>`).join("") : `<div class="guest-center">No guest services are available right now.</div>`}
+      </div>
+      ${state.serviceError ? `<p class="guest-error" role="alert">${escapeHtml(state.serviceError)}</p>` : ""}
+      ${state.serviceMessage ? `<p class="guest-service-success" role="status">${escapeHtml(state.serviceMessage)}</p>` : ""}
     </section>`;
   }
 
@@ -230,6 +275,7 @@
       loading: renderStatus,
       error: renderStatus,
       home: renderHome,
+      services: renderServices,
       menu: renderMenu,
       detail: renderDetail,
       cart: renderCart,
@@ -274,11 +320,17 @@
       const menu = await requestJson(config.menu_url, {
         headers: { "X-Device-ID": state.deviceId },
       });
+      const services = await requestJson(config.services_url, {
+        headers: { "X-Device-ID": state.deviceId },
+      });
       if (!Array.isArray(menu.items)) throw new Error("The portal returned an invalid menu.");
+      if (!Array.isArray(services.services)) throw new Error("The portal returned an invalid services list.");
       state.items = menu.items.filter((item) =>
         item && Number.isInteger(item.id) && typeof item.name === "string" &&
         Number.isFinite(Number(item.price)) && Number.isInteger(item.preparation_minutes) &&
         (item.department === "kitchen" || item.department === "bar"));
+      state.services = services.services.filter((service) =>
+        service && Number.isInteger(service.id) && typeof service.name === "string");
       state.screen = "home";
       state.history = [];
       render();
@@ -313,6 +365,9 @@
       }
       state.orderNumber = result.order_number;
       state.orderLines = result.items;
+      state.whatsappMessages = Array.isArray(result.whatsapp_messages)
+        ? result.whatsapp_messages
+        : [];
       state.submitting = false;
       state.screen = "confirmation";
       state.history = [];
@@ -325,6 +380,26 @@
     }
   }
 
+  async function requestService(serviceId) {
+    state.requestingServiceId = serviceId;
+    state.serviceError = "";
+    state.serviceMessage = "";
+    render();
+    try {
+      const result = await requestJson(config.service_requests_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: state.deviceId, service_id: serviceId }),
+      });
+      state.serviceMessage = `Your request is on its way · Ref ${result.request_id}`;
+    } catch (error) {
+      state.serviceError = error instanceof Error ? error.message : "Could not request this service.";
+    } finally {
+      state.requestingServiceId = null;
+      render();
+    }
+  }
+
   app.addEventListener("click", (event) => {
     const target = event.target.closest("[data-action]");
     if (!target) return;
@@ -333,10 +408,12 @@
     if (action === "cart") return navigate("cart");
     if (action === "retry") return connect();
     if (action === "department") {
+      if (target.dataset.department === "services") return navigate("services");
       state.department = target.dataset.department;
       state.category = "All";
       return navigate("menu");
     }
+    if (action === "request-service") return requestService(Number(target.dataset.serviceId));
     if (action === "category") {
       state.category = target.dataset.category;
       return render();

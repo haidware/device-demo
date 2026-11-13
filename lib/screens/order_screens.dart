@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/order.dart';
+import '../services/portal_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
@@ -285,11 +286,15 @@ class ConfirmScreen extends StatelessWidget {
     super.key,
     required this.orderNumber,
     required this.lines,
+    required this.whatsappMessages,
+    required this.onOpenWhatsApp,
     required this.onBackHome,
   });
 
   final String orderNumber;
   final List<CartLine> lines;
+  final List<PortalWhatsAppMessage> whatsappMessages;
+  final Future<void> Function(String link) onOpenWhatsApp;
   final VoidCallback onBackHome;
 
   @override
@@ -351,6 +356,7 @@ class ConfirmScreen extends StatelessWidget {
                   vertical: 6,
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (var index = 0; index < lines.length; index++) ...[
                       if (index > 0)
@@ -377,6 +383,74 @@ class ConfirmScreen extends StatelessWidget {
                         ],
                       ),
                     ],
+                    if (whatsappMessages.isNotEmpty) ...[
+                      const Divider(height: 20, color: AppColors.border),
+                      const Text(
+                        'Send your payment message',
+                        style: TextStyle(
+                          color: AppColors.text,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Open WhatsApp and tap Send to notify your assigned team.',
+                        style: TextStyle(color: AppColors.muted, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final message in whatsappMessages)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 7),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  message.staffName.isEmpty
+                                      ? message.department
+                                      : '${message.department} · ${message.staffName}',
+                                  style: const TextStyle(
+                                    color: AppColors.text,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              if (message.url.isNotEmpty)
+                                TextButton.icon(
+                                  onPressed: () => onOpenWhatsApp(message.url),
+                                  icon: const Icon(
+                                    Icons.send_rounded,
+                                    size: 17,
+                                  ),
+                                  label: const Text('Open WhatsApp'),
+                                )
+                              else
+                                Flexible(
+                                  child: Text(
+                                    message.detail.isNotEmpty
+                                        ? message.detail
+                                        : 'No WhatsApp contact assigned.',
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ] else
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Text(
+                          'Please contact reception to confirm your payment.',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

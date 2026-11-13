@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
 import 'package:device_demo/app.dart';
+import 'package:device_demo/models/order.dart';
+import 'package:device_demo/screens/order_screens.dart';
+import 'package:device_demo/services/portal_api.dart';
 import 'package:device_demo/screens/welcome_screens.dart';
 
 void main() {
@@ -85,6 +88,48 @@ void main() {
     expect(find.text('Bar'), findsOneWidget);
     expect(find.text('Services'), findsOneWidget);
     expect(find.byTooltip('Room details'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('order confirmation opens the assigned WhatsApp message', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 480);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? openedLink;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ConfirmScreen(
+            orderNumber: 'HDW-ABC123',
+            lines: [CartLine(item: menuItems[1], quantity: 1)],
+            whatsappMessages: const [
+              PortalWhatsAppMessage(
+                department: 'Kitchen',
+                staffName: 'Kemi',
+                status: 'demo',
+                detail: 'Manual send required.',
+                url: 'https://wa.me/2348011112222?text=Payment',
+              ),
+            ],
+            onOpenWhatsApp: (link) async {
+              openedLink = link;
+            },
+            onBackHome: () {},
+          ),
+        ),
+      ),
+    );
+
+    final whatsappButton = find.text('Open WhatsApp');
+    await tester.ensureVisible(whatsappButton);
+    await tester.tap(whatsappButton);
+    await tester.pump();
+
+    expect(openedLink, 'https://wa.me/2348011112222?text=Payment');
     expect(tester.takeException(), isNull);
   });
 

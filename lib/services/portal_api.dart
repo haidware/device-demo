@@ -46,6 +46,32 @@ class PortalDeviceSession {
   final String accountNumber;
 }
 
+class PortalWhatsAppMessage {
+  const PortalWhatsAppMessage({
+    required this.department,
+    required this.staffName,
+    required this.status,
+    required this.detail,
+    required this.url,
+  });
+
+  final String department;
+  final String staffName;
+  final String status;
+  final String detail;
+  final String url;
+}
+
+class PortalOrderSubmission {
+  const PortalOrderSubmission({
+    required this.orderNumber,
+    required this.whatsappMessages,
+  });
+
+  final String orderNumber;
+  final List<PortalWhatsAppMessage> whatsappMessages;
+}
+
 class PortalApi {
   PortalApi(String baseUrl, {http.Client? client})
     : _baseUrl = baseUrl.replaceFirst(RegExp(r'/$'), ''),
@@ -132,7 +158,7 @@ class PortalApi {
     return requestId;
   }
 
-  Future<String> submitOrder({
+  Future<PortalOrderSubmission> submitOrder({
     required String deviceId,
     required String senderName,
     required List<CartLine> lines,
@@ -160,7 +186,57 @@ class PortalApi {
         'The portal did not return an order number.',
       );
     }
-    return orderNumber;
+    final rawMessages = data['whatsapp_messages'];
+    if (rawMessages != null && rawMessages is! List) {
+      throw const PortalApiException(
+        'The portal returned an invalid WhatsApp message list.',
+      );
+    }
+    final whatsappMessages = (rawMessages as List? ?? const []).map((
+      rawMessage,
+    ) {
+      if (rawMessage is! Map<String, dynamic>) {
+        throw const PortalApiException(
+          'The portal returned an invalid WhatsApp message.',
+        );
+      }
+      for (final key in [
+        'department',
+        'staff_name',
+        'status',
+        'detail',
+        'whatsapp_url',
+      ]) {
+        if (rawMessage[key] != null && rawMessage[key] is! String) {
+          throw const PortalApiException(
+            'The portal returned an invalid WhatsApp message.',
+          );
+        }
+      }
+      final url = rawMessage['whatsapp_url'] as String? ?? '';
+      if (url.isNotEmpty) {
+        final uri = Uri.tryParse(url);
+        if (uri == null ||
+            uri.scheme != 'https' ||
+            uri.host != 'wa.me' ||
+            uri.userInfo.isNotEmpty) {
+          throw const PortalApiException(
+            'The portal returned an invalid WhatsApp link.',
+          );
+        }
+      }
+      return PortalWhatsAppMessage(
+        department: rawMessage['department'] as String? ?? '',
+        staffName: rawMessage['staff_name'] as String? ?? '',
+        status: rawMessage['status'] as String? ?? '',
+        detail: rawMessage['detail'] as String? ?? '',
+        url: url,
+      );
+    }).toList();
+    return PortalOrderSubmission(
+      orderNumber: orderNumber,
+      whatsappMessages: whatsappMessages,
+    );
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'models/app_page.dart';
 import 'models/hospitality_service.dart';
@@ -52,6 +54,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
   MenuItem _selectedItem = menuItems.first;
   List<MenuItem> _menuItems = menuItems;
   List<HospitalityService> _services = const [];
+  List<PortalWhatsAppMessage> _whatsappMessages = const [];
   int _detailQuantity = 1;
   String _deviceIdNumber = '';
   String _propertyName = '';
@@ -167,7 +170,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         _orderSubmissionError = null;
       });
       try {
-        final orderNumber = await _portalApi.submitOrder(
+        final submission = await _portalApi.submitOrder(
           deviceId: _deviceIdNumber.trim(),
           senderName: _transferSenderName,
           lines: _cartLines,
@@ -175,7 +178,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         );
         if (!mounted) return;
         setState(() {
-          _orderNumber = orderNumber;
+          _orderNumber = submission.orderNumber;
+          _whatsappMessages = submission.whatsappMessages;
           _orderStatus = 1;
           _isSubmittingOrder = false;
           _history.add(_page);
@@ -199,6 +203,24 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
     }
     setState(() => _orderStatus = 1);
     _navigate(AppPage.confirmation);
+  }
+
+  Future<void> _openWhatsApp(String link) async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(link),
+        mode: LaunchMode.externalApplication,
+      );
+      if (opened || !mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
+    } on PlatformException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
+    }
   }
 
   void _backHome() {
@@ -371,6 +393,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         return ConfirmScreen(
           orderNumber: _orderNumber,
           lines: _cartLines,
+          whatsappMessages: _whatsappMessages,
+          onOpenWhatsApp: _openWhatsApp,
           onBackHome: _backHome,
         );
       case AppPage.tracking:
