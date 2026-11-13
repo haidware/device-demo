@@ -17,4 +17,17 @@ urlpatterns = [
         api.staff_push_subscription,
         name="api_staff_push_subscription",
     ),
+    path("staff/app/login/", api.staff_app_login, name="api_staff_app_login"),
+    path("staff/app/session/", api.staff_app_session, name="api_staff_app_session"),
+    path(
+        "staff/app/notifications/",
+        api.staff_app_notifications,
+        name="api_staff_app_notifications",
+    ),
+    path("staff/app/logout/", api.staff_app_logout, name="api_staff_app_logout"),
+    path(
+        "staff/app/push-subscriptions/",
+        api.staff_app_push_subscription,
+        name="api_staff_app_push_subscription",
+    ),
 ]

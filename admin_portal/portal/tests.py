@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import os
 from decimal import Decimal
@@ -24,6 +25,7 @@ from .models import (
     Room,
     ServiceOption,
     ServiceRequest,
+    StaffAppAccessToken,
     ShiftAssignment,
     StaffProfile,
     StaffPushSubscription,
@@ -128,6 +130,13 @@ class PortalFlowTests(TestCase):
         self.assertEqual(reverse("dashboard"), "/admin/dashboard/")
         self.assertEqual(reverse("guest_order"), "/guest-order/")
         self.assertEqual(reverse("staff_notifications_app"), "/ordernotification")
+
+        response = self.client.get(reverse("staff_notifications_app"))
+        self.assertRedirects(
+            response,
+            "https://demodevice-order-notification-production.up.railway.app",
+            fetch_redirect_response=False,
+        )
 
         response = self.client.get("/admin/")
 
@@ -1211,6 +1220,149 @@ class PortalFlowTests(TestCase):
         self.assertEqual(len(bar_notifications), 1)
         self.assertEqual(bar_notifications[0]["department"], "Bar")
         self.assertEqual(bar_notifications[0]["items"][0]["name"], "Mango Mocktail")
+
+    @override_settings(
+        CORS_ALLOWED_ORIGINS={
+            "https://demodevice-order-notification-production.up.railway.app"
+        },
+        WEB_PUSH_VAPID_PUBLIC_KEY="public",
+        WEB_PUSH_VAPID_PRIVATE_KEY_B64="cHJpdmF0ZQ==",
+        WEB_PUSH_VAPID_SUBJECT="https://demodevice-order-notification-production.up.railway.app/",
+    )
+    def test_staff_pwa_login_uses_bearer_auth_for_inbox_push_and_logout(self):
+        staff_user = User.objects.create_user(
+            username="pwa.kitchen",
+            password="Secure-Staff-Passphrase-9842!",
+            first_name="Kemi",
+        )
+        staff = StaffProfile.objects.create(
+            user=staff_user,
+            property=self.property,
+            role="kitchen_staff",
+            departments="Kitchen",
+            phone_number="+234 801 111 2222",
+        )
+        ShiftAssignment.objects.create(
+            property=self.property,
+            shift=self.property.active_shift,
+            department="kitchen",
+            staff=staff,
+        )
+        order_response = self.client.post(
+            reverse("api_create_order"),
+            data=json.dumps(
+                {
+                    "device_id": self.device.device_id,
+                    "sender_name": "Jane Customer",
+                    "expected_total": 5000,
+                    "items": [{"item_id": self.item.pk, "quantity": 1}],
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(order_response.status_code, 201)
+        origin = "https://demodevice-order-notification-production.up.railway.app"
+
+        rejected = self.client.post(
+            reverse("api_staff_app_login"),
+            data=json.dumps(
+                {"username": "pwa.kitchen", "password": "incorrect-password"}
+            ),
+            content_type="application/json",
+            HTTP_ORIGIN=origin,
+        )
+        self.assertEqual(rejected.status_code, 401)
+        self.assertEqual(
+            rejected.headers["Access-Control-Allow-Origin"],
+            origin,
+        )
+
+        login = self.client.post(
+            reverse("api_staff_app_login"),
+            data=json.dumps(
+                {
+                    "username": "pwa.kitchen",
+                    "password": "Secure-Staff-Passphrase-9842!",
+                }
+            ),
+            content_type="application/json",
+            HTTP_ORIGIN=origin,
+        )
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.json()["name"], "Kemi")
+        self.assertTrue(login.json()["push_enabled"])
+        access_token = login.json()["access_token"]
+        token_record = StaffAppAccessToken.objects.get(staff=staff)
+        self.assertEqual(
+            token_record.token_hash,
+            hashlib.sha256(access_token.encode()).hexdigest(),
+        )
+        self.assertNotEqual(token_record.token_hash, access_token)
+
+        auth_headers = {
+            "HTTP_AUTHORIZATION": f"Bearer {access_token}",
+            "HTTP_ORIGIN": origin,
+        }
+        session = self.client.get(
+            reverse("api_staff_app_session"),
+            **auth_headers,
+        )
+        self.assertEqual(session.status_code, 200)
+        self.assertEqual(session.json()["username"], "pwa.kitchen")
+
+        notifications = self.client.get(
+            reverse("api_staff_app_notifications"),
+            **auth_headers,
+        )
+        self.assertEqual(notifications.status_code, 200)
+        self.assertEqual(
+            notifications.json()["notifications"][0]["items"][0]["name"],
+            "Jollof Rice",
+        )
+
+        public_key = base64.urlsafe_b64encode(
+            b"\x04" + b"k" * 64
+        ).decode().rstrip("=")
+        auth_key = base64.urlsafe_b64encode(b"a" * 16).decode().rstrip("=")
+        push = self.client.post(
+            reverse("api_staff_app_push_subscription"),
+            data=json.dumps(
+                {
+                    "subscription": {
+                        "endpoint": "https://fcm.googleapis.com/fcm/send/pwa-token",
+                        "keys": {"p256dh": public_key, "auth": auth_key},
+                    }
+                }
+            ),
+            content_type="application/json",
+            **auth_headers,
+        )
+        self.assertEqual(push.status_code, 200)
+        self.assertEqual(
+            StaffPushSubscription.objects.get().staff,
+            staff,
+        )
+        preflight = self.client.options(
+            reverse("api_staff_app_notifications"),
+            HTTP_ORIGIN=origin,
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="authorization",
+        )
+        self.assertEqual(preflight.status_code, 204)
+        self.assertIn("Authorization", preflight.headers["Access-Control-Allow-Headers"])
+
+        logout = self.client.post(
+            reverse("api_staff_app_logout"),
+            **auth_headers,
+        )
+        self.assertEqual(logout.status_code, 200)
+        self.assertEqual(StaffAppAccessToken.objects.filter(staff=staff).count(), 0)
+        self.assertEqual(
+            self.client.get(
+                reverse("api_staff_app_notifications"),
+                **auth_headers,
+            ).status_code,
+            401,
+        )
 
     def test_services_requests_are_delivered_to_admin_assigned_services_staff(self):
         staff_user = User.objects.create_user(username="services.staff", password="x")

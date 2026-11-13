@@ -17,6 +17,8 @@ class DeviceApiCorsMiddleware:
         if is_api and origin in settings.CORS_ALLOWED_ORIGINS:
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            response["Access-Control-Allow-Headers"] = "Content-Type, X-Device-ID"
+            response["Access-Control-Allow-Headers"] = (
+                "Content-Type, X-Device-ID, Authorization"
+            )
             response["Vary"] = "Origin"
         return response

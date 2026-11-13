@@ -1,11 +1,15 @@
 import base64
+import hashlib
 import json
+import secrets
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from django.conf import settings
+from django.contrib.auth import authenticate
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -20,6 +24,7 @@ from .models import (
     MenuItem,
     Order,
     OrderLine,
+    StaffAppAccessToken,
     StaffProfile,
     StaffPushSubscription,
     ROUTING_DEPARTMENTS,
@@ -416,16 +421,9 @@ def staff_session(request):
     profile, error = _assigned_staff_profile(request)
     if error:
         return error
-    return JsonResponse(
-        {
-            "username": request.user.get_username(),
-            "name": request.user.get_full_name() or request.user.get_username(),
-            "department": profile.departments or profile.get_role_display(),
-            "push_enabled": _web_push_is_configured(),
-            "push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,
-            "csrf_token": get_token(request),
-        }
-    )
+    payload = _staff_session_payload(profile)
+    payload["csrf_token"] = get_token(request)
+    return JsonResponse(payload)
 
 
 @require_GET
@@ -433,6 +431,101 @@ def staff_notifications(request):
     profile, error = _assigned_staff_profile(request)
     if error:
         return error
+    return _staff_notifications_response(profile)
+
+
+@csrf_exempt
+@require_POST
+def staff_app_login(request):
+    data, error = _json_body(request)
+    if error:
+        return error
+    username, password = data.get("username"), data.get("password")
+    if (
+        not isinstance(username, str)
+        or not username.strip()
+        or not isinstance(password, str)
+        or not password
+    ):
+        return JsonResponse(
+            {"error": "Enter your assigned staff username and password."},
+            status=400,
+        )
+    user = authenticate(
+        request,
+        username=username.strip(),
+        password=password,
+    )
+    profile = _active_staff_profile_for_user(user) if user else None
+    if profile is None:
+        return JsonResponse(
+            {"error": "Staff username or password is incorrect."},
+            status=401,
+        )
+
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = timezone.now() + timedelta(days=30)
+    StaffAppAccessToken.objects.create(
+        staff=profile,
+        token_hash=hashlib.sha256(raw_token.encode("ascii")).hexdigest(),
+        expires_at=expires_at,
+    )
+    return JsonResponse(
+        {
+            **_staff_session_payload(profile),
+            "access_token": raw_token,
+            "expires_at": expires_at.isoformat(),
+        }
+    )
+
+
+@require_GET
+def staff_app_session(request):
+    profile, error = _staff_app_profile(request)
+    if error:
+        return error
+    return JsonResponse(_staff_session_payload(profile))
+
+
+@require_GET
+def staff_app_notifications(request):
+    profile, error = _staff_app_profile(request)
+    if error:
+        return error
+    return _staff_notifications_response(profile)
+
+
+@csrf_exempt
+@require_POST
+def staff_app_logout(request):
+    token = _staff_app_token(request)
+    if token is None:
+        return JsonResponse({"error": "Staff sign-in has expired."}, status=401)
+    token.delete()
+    return JsonResponse({"status": "signed_out"})
+
+
+@csrf_exempt
+@require_POST
+def staff_app_push_subscription(request):
+    profile, error = _staff_app_profile(request)
+    if error:
+        return error
+    return _save_staff_push_subscription(request, profile)
+
+
+def _staff_session_payload(profile):
+    user = profile.user
+    return {
+        "username": user.get_username(),
+        "name": user.get_full_name() or user.get_username(),
+        "department": profile.departments or profile.get_role_display(),
+        "push_enabled": _web_push_is_configured(),
+        "push_public_key": settings.WEB_PUSH_VAPID_PUBLIC_KEY,
+    }
+
+
+def _staff_notifications_response(profile):
     attempts = (
         WhatsAppAttempt.objects.filter(staff=profile)
         .select_related(
@@ -503,6 +596,10 @@ def staff_push_subscription(request):
     profile, error = _assigned_staff_profile(request)
     if error:
         return error
+    return _save_staff_push_subscription(request, profile)
+
+
+def _save_staff_push_subscription(request, profile):
     if not _web_push_is_configured():
         return JsonResponse(
             {"error": "Browser push is not configured for this portal."},
@@ -572,6 +669,48 @@ def _assigned_staff_profile(request):
             {"error": "This account is not an active staff account."}, status=403
         )
     return profile, None
+
+
+def _active_staff_profile_for_user(user):
+    if user is None or not user.is_active:
+        return None
+    return (
+        StaffProfile.objects.select_related("property", "user")
+        .filter(user=user, active=True, property__is_active=True)
+        .first()
+    )
+
+
+def _staff_app_token(request):
+    scheme, separator, raw_token = request.headers.get(
+        "Authorization", ""
+    ).partition(" ")
+    if (
+        scheme.lower() != "bearer"
+        or not separator
+        or not raw_token
+        or len(raw_token) > 128
+    ):
+        return None
+    digest = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    return (
+        StaffAppAccessToken.objects.select_related("staff__user", "staff__property")
+        .filter(
+            token_hash=digest,
+            expires_at__gt=timezone.now(),
+            staff__active=True,
+            staff__user__is_active=True,
+            staff__property__is_active=True,
+        )
+        .first()
+    )
+
+
+def _staff_app_profile(request):
+    token = _staff_app_token(request)
+    if token is None:
+        return None, JsonResponse({"error": "Staff sign-in has expired."}, status=401)
+    return token.staff, None
 
 
 def _decode_push_key(value):

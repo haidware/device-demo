@@ -53,12 +53,15 @@ its credentials/templates.
 
 ## Staff order inbox and push
 
-Staff sign in at `/ordernotification` with the account created by their hotel
-administrator. The inbox shows only orders and service requests assigned to
-that staff member, and refreshes while open. Kitchen and Bar notifications
-follow their department assignments; Services requests follow the Services
-staff assignment configured by the administrator. To receive browser push
-alerts while the inbox is closed, generate VAPID keys from `admin_portal`:
+Staff sign in at
+[`https://demodevice-order-notification-production.up.railway.app`](https://demodevice-order-notification-production.up.railway.app)
+with the account created by their hotel administrator. The legacy
+`/ordernotification` route redirects to this standalone installable app. The
+inbox shows only orders and service requests assigned to that staff member, and
+refreshes while open. Kitchen and Bar notifications follow their department
+assignments; Services requests follow the Services staff assignment configured
+by the administrator. To receive browser push alerts while the inbox is closed,
+generate VAPID keys from `admin_portal`:
 
 ```powershell
 python manage.py generate_staff_push_keys
@@ -69,6 +72,8 @@ and `WEB_PUSH_VAPID_SUBJECT` values in the deployment environment. Keep the
 private key secret and out of source control. Staff then sign in and choose
 **Enable push notifications** from the inbox. Without these deployment values,
 the inbox still receives updates while open but background push is unavailable.
+The backend uses hashed, expiring bearer tokens for the standalone app; its
+origin must be included in `CORS_ALLOWED_ORIGINS`.
 
 ## Admin portal and QR ordering
 
@@ -177,6 +182,11 @@ environment variables for Render:
 - `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY_B64`, and
   `WEB_PUSH_VAPID_SUBJECT`: optional; configure browser push for staff
   notifications using the steps above.
+- `CORS_ALLOWED_ORIGINS`: include
+  `https://demodevice-order-notification-production.up.railway.app` for the
+  standalone staff app.
+- `STAFF_NOTIFICATION_APP_URL`: optional; destination for the legacy
+  `/ordernotification` redirect.
 
 The container runs migrations before starting and serves `/health` for Render's
 health check. After deploying, use `/admin/manager-signup/` to create the first

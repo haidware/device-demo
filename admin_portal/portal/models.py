@@ -383,6 +383,18 @@ class StaffPushSubscription(models.Model):
         ordering = ["-updated_at"]
 
 
+class StaffAppAccessToken(models.Model):
+    staff = models.ForeignKey(
+        StaffProfile, on_delete=models.CASCADE, related_name="app_access_tokens"
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class PortalSettings(models.Model):
     SHIFT_CHOICES = SHIFT_CHOICES
 

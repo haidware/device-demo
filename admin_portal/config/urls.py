@@ -1,4 +1,5 @@
 from django.contrib.auth import views as auth_views
+from django.conf import settings
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 
@@ -28,7 +29,7 @@ urlpatterns = [
     re_path(r"^commandcenter/?$", views.command_center, name="command_center"),
     re_path(
         r"^ordernotification/?$",
-        flutter_home,
+        RedirectView.as_view(url=settings.STAFF_NOTIFICATION_APP_URL, permanent=False),
         name="staff_notifications_app",
     ),
     path(

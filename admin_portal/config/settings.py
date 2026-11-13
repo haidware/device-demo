@@ -129,6 +129,10 @@ CORS_ALLOWED_ORIGINS = {
     for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 }
+STAFF_NOTIFICATION_APP_URL = os.environ.get(
+    "STAFF_NOTIFICATION_APP_URL",
+    "https://demodevice-order-notification-production.up.railway.app",
+).strip()
 GUEST_ORDER_BASE_URL = os.environ.get("GUEST_ORDER_BASE_URL", "").strip()
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
