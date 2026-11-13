@@ -1,5 +1,5 @@
 import json
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
@@ -252,9 +252,6 @@ def create_order(request):
         (item.price * quantities[item.pk] for item in items),
         start=Decimal("0.00"),
     )
-    service_charge = (subtotal * Decimal("0.10")).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
     expected_total = data.get("expected_total")
     if isinstance(expected_total, bool) or not isinstance(expected_total, (int, str)):
         return JsonResponse({"error": "Expected order total is required."}, status=400)
@@ -262,11 +259,11 @@ def create_order(request):
         paid_total = Decimal(str(expected_total))
     except (InvalidOperation, ValueError):
         return JsonResponse({"error": "Expected order total is invalid."}, status=400)
-    if not paid_total.is_finite() or paid_total != subtotal + service_charge:
+    if not paid_total.is_finite() or paid_total != subtotal:
         return JsonResponse(
             {
                 "error": "The menu total changed. Review the updated cart before ordering.",
-                "total": str(subtotal + service_charge),
+                "total": str(subtotal),
             },
             status=409,
         )
@@ -277,7 +274,7 @@ def create_order(request):
             device=device,
             sender_name=sender_name.strip()[:120],
             payment_status="review",
-            service_charge=service_charge,
+            service_charge=Decimal("0.00"),
         )
         for item in items:
             OrderLine.objects.create(

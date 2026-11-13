@@ -278,7 +278,7 @@ class Order(models.Model):
 
     @builtins.property
     def total(self):
-        return self.subtotal + self.service_charge
+        return self.subtotal
 
     @builtins.property
     def estimated_minutes(self):

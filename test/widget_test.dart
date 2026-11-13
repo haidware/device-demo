@@ -171,6 +171,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Your Cart'), findsOneWidget);
     expect(find.text('N6,500'), findsAtLeastNWidgets(1));
+    expect(find.text('Service Charge (10%)'), findsNothing);
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
     expect(find.text('2'), findsOneWidget);

@@ -117,9 +117,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
 
   int get _cartCount =>
       _cart.values.fold(0, (total, quantity) => total + quantity);
-  int get _subtotal => _cartLines.fold(0, (total, line) => total + line.total);
-  int get _serviceCharge => (_subtotal * 0.1).round();
-  int get _grandTotal => _subtotal + _serviceCharge;
+  int get _orderTotal =>
+      _cartLines.fold(0, (total, line) => total + line.total);
 
   Future<void> _signInWithDevice() async {
     if (_portalApi.isConfigured) {
@@ -174,7 +173,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           deviceId: _deviceIdNumber.trim(),
           senderName: _transferSenderName,
           lines: _cartLines,
-          expectedTotal: _grandTotal,
+          expectedTotal: _orderTotal,
         );
         if (!mounted) return;
         setState(() {
@@ -357,9 +356,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       case AppPage.cart:
         return CartScreen(
           lines: _cartLines,
-          subtotal: _subtotal,
-          serviceCharge: _serviceCharge,
-          total: _grandTotal,
+          total: _orderTotal,
           onChangeQuantity: _changeCartQuantity,
           onCheckout: () =>
               go(_cartLines.isEmpty ? AppPage.kitchen : AppPage.checkout),
@@ -367,7 +364,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         );
       case AppPage.checkout:
         return CheckoutScreen(
-          total: _grandTotal,
+          total: _orderTotal,
           bankName: _bankName,
           accountName: _accountName,
           accountNumber: _accountNumber,
@@ -383,7 +380,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
           orderNumber: _orderNumber,
           deviceIdNumber: _deviceIdNumber,
           senderName: _transferSenderName,
-          total: _grandTotal,
+          total: _orderTotal,
           onConfirmOrder: _confirmOrder,
           isSubmitting: _isSubmittingOrder,
           errorMessage: _orderSubmissionError,
@@ -409,7 +406,7 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
         return DetailsScreen(
           orderNumber: _orderNumber,
           lines: _cartLines,
-          total: _grandTotal,
+          total: _orderTotal,
           onBackHome: () => go(AppPage.home),
           onBack: back,
         );

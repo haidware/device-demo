@@ -153,7 +153,7 @@ void main() {
         deviceId: '123456',
         senderName: 'Jane Customer',
         lines: [CartLine(item: session.menuItems.single, quantity: 2)],
-        expectedTotal: 11000,
+        expectedTotal: 10000,
       );
       expect(submission.orderNumber, 'HDW-ABC123');
       expect(submission.whatsappMessages.single.department, 'Kitchen');
@@ -164,7 +164,7 @@ void main() {
       );
       final orderBody = jsonDecode(requests.last.body) as Map<String, dynamic>;
       expect(orderBody['sender_name'], 'Jane Customer');
-      expect(orderBody['expected_total'], 11000);
+      expect(orderBody['expected_total'], 10000);
       expect(orderBody['items'], [
         {'item_id': 42, 'quantity': 2},
       ]);

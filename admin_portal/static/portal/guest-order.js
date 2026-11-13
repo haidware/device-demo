@@ -59,9 +59,7 @@
     .filter((item) => state.cart.has(String(item.id)))
     .map((item) => ({ item, quantity: state.cart.get(String(item.id)) }));
   const cartCount = () => [...state.cart.values()].reduce((sum, quantity) => sum + quantity, 0);
-  const subtotal = () => cartLines().reduce((sum, line) => sum + Number(line.item.price) * line.quantity, 0);
-  const serviceCharge = () => Math.round(subtotal() * 0.1);
-  const total = () => subtotal() + serviceCharge();
+  const total = () => cartLines().reduce((sum, line) => sum + Number(line.item.price) * line.quantity, 0);
   const art = (index = 0, imageUrl = "", alt = "") => imageUrl
     ? `<div class="guest-food-art guest-food-image"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}" loading="lazy"></div>`
     : `<div class="guest-food-art variant-${index % 3}" data-art="${index % 2 ? "◉" : "≋"}" aria-hidden="true"></div>`;
@@ -91,8 +89,6 @@
 
   function totalRows() {
     return `<div class="guest-totals">
-      <div class="guest-total-row"><span>Subtotal</span><strong>${money(subtotal())}</strong></div>
-      <div class="guest-total-row"><span>Service Charge (10%)</span><strong>${money(serviceCharge())}</strong></div>
       <div class="guest-total-row grand"><span>Total</span><strong>${money(total())}</strong></div>
     </div>`;
   }

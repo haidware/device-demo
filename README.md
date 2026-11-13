@@ -41,14 +41,15 @@ on mobile) to install Haidware.
 
 Checkout uses bank transfer and generates a reception payment-message preview
 after guests enter the name on the bank sender account and select **I have
-paid**. Selecting **Confirm Order** records the order and department-specific
-payment notifications for both QR and device orders. The admin dashboard
-updates its activity feed every eight seconds and shows the sender name, room,
-department, and items. After order confirmation, guests can open prefilled
-WhatsApp payment messages for the currently assigned department staff and tap
-**Send**; an authorized portal operator can also send from the dashboard.
-WhatsApp is not sent automatically; real automated delivery needs an official
-WhatsApp provider and its credentials/templates.
+paid**. The order and payment amount is the menu-item total only; no service
+charge is added. Selecting **Confirm Order** records the order and
+department-specific payment notifications for both QR and device orders. The
+admin dashboard updates its activity feed every eight seconds and shows the
+sender name, room, department, and items. After order confirmation, guests can
+open prefilled WhatsApp payment messages for the currently assigned department
+staff and tap **Send**; an authorized portal operator can also send from the
+dashboard. WhatsApp is not sent automatically; real automated delivery needs
+an official WhatsApp provider and its credentials/templates.
 
 ## Admin portal and QR ordering
 

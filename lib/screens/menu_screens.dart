@@ -350,8 +350,6 @@ class CartScreen extends StatelessWidget {
   const CartScreen({
     super.key,
     required this.lines,
-    required this.subtotal,
-    required this.serviceCharge,
     required this.total,
     required this.onChangeQuantity,
     required this.onCheckout,
@@ -359,8 +357,6 @@ class CartScreen extends StatelessWidget {
   });
 
   final List<CartLine> lines;
-  final int subtotal;
-  final int serviceCharge;
   final int total;
   final void Function(MenuItem item, int change) onChangeQuantity;
   final VoidCallback onCheckout;
@@ -471,10 +467,6 @@ class CartScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _AmountRow(label: 'Subtotal', amount: subtotal),
-            const SizedBox(height: 3),
-            _AmountRow(label: 'Service Charge (10%)', amount: serviceCharge),
-            const Divider(color: AppColors.border, height: 16),
             _AmountRow(label: 'Total', amount: total, emphasized: true),
           ],
           const SizedBox(height: 13),

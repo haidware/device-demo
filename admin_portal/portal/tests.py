@@ -962,7 +962,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": self.device.device_id,
                     "sender_name": "Jane Customer",
-                    "expected_total": 1100,
+                    "expected_total": 1000,
                     "items": [{"item_id": other_item.pk, "quantity": 1}],
                 }
             ),
@@ -1036,7 +1036,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": self.device.device_id,
                     "sender_name": "Jane Customer",
-                    "expected_total": 5500,
+                    "expected_total": 5000,
                     "items": [{"item_id": self.item.pk, "quantity": 1}],
                 }
             ),
@@ -1110,7 +1110,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": "123456",
                     "sender_name": "Jane Customer",
-                    "expected_total": 11000,
+                    "expected_total": 10000,
                     "items": [{"item_id": self.item.pk, "quantity": 2}],
                 }
             ),
@@ -1118,11 +1118,17 @@ class PortalFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         payload = response.json()
-        self.assertEqual(payload["total"], "11000.00")
+        self.assertEqual(payload["total"], "10000.00")
         self.assertEqual(payload["payment_status"], "review")
         order = Order.objects.get(order_number=payload["order_number"])
         self.assertEqual(order.sender_name, "Jane Customer")
         self.assertEqual(order.lines.get().quantity, 2)
+        self.assertEqual(order.service_charge, Decimal("0.00"))
+        self.assertEqual(order.total, Decimal("10000.00"))
+        self.client.force_login(self.admin)
+        order_detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(order_detail, "Order total")
+        self.assertNotContains(order_detail, "Service charge")
 
     def test_order_notification_message_contains_sender_and_department_items(self):
         bar_item = MenuItem.objects.create(
@@ -1158,6 +1164,8 @@ class PortalFlowTests(TestCase):
 
         self.assertIn("Sender name: Jane Customer", kitchen_message)
         self.assertIn("Jollof Rice x1", kitchen_message)
+        self.assertIn("Total: NGN 8,000", kitchen_message)
+        self.assertEqual(order.total, Decimal("8000.00"))
         self.assertNotIn("Mango Mocktail", kitchen_message)
         self.assertIn("Mango Mocktail x1", bar_message)
         self.assertNotIn("Jollof Rice", bar_message)
@@ -1218,7 +1226,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": self.device.device_id,
                     "sender_name": "Jane Customer",
-                    "expected_total": 8800,
+                    "expected_total": 8000,
                     "items": [
                         {"item_id": self.item.pk, "quantity": 1},
                         {"item_id": bar_item.pk, "quantity": 1},
@@ -1295,7 +1303,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": self.device.device_id,
                     "sender_name": "Jane Customer",
-                    "expected_total": 5500,
+                    "expected_total": 5000,
                     "items": [{"item_id": self.item.pk, "quantity": 1}],
                 }
             ),
@@ -1319,7 +1327,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": "123456",
                     "sender_name": "Jane Customer",
-                    "expected_total": 5500,
+                    "expected_total": 5000,
                     "items": [
                         {"item_id": self.item.pk, "quantity": 1, "price": "1.00"}
                     ],
@@ -1335,20 +1343,21 @@ class PortalFlowTests(TestCase):
         self.assertEqual(message["whatsapp_url"], "")
         self.assertIn("No active staff contact", message["detail"])
 
-    def test_rejects_order_when_paid_total_no_longer_matches_menu(self):
+    def test_rejects_order_when_paid_total_includes_a_service_charge(self):
         response = self.client.post(
             reverse("api_create_order"),
             data=json.dumps(
                 {
                     "device_id": "123456",
                     "sender_name": "Jane Customer",
-                    "expected_total": 1,
+                    "expected_total": 5500,
                     "items": [{"item_id": self.item.pk, "quantity": 1}],
                 }
             ),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["total"], "5000.00")
         self.assertEqual(Order.objects.count(), 0)
 
     def test_menu_price_must_be_a_whole_naira_value(self):
@@ -1504,7 +1513,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": "123456",
                     "sender_name": "Jane Customer",
-                    "expected_total": 5500,
+                    "expected_total": 5000,
                     "items": [{"item_id": self.item.pk, "quantity": 1}],
                 }
             ),
@@ -1524,7 +1533,7 @@ class PortalFlowTests(TestCase):
                 {
                     "device_id": "123456",
                     "sender_name": "Jane Customer",
-                    "expected_total": 5500,
+                    "expected_total": 5000,
                     "items": [{"item_id": self.item.pk, "quantity": 1}],
                 }
             ),

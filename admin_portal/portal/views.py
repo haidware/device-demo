@@ -205,10 +205,7 @@ def _revenue_for_orders(orders):
         )["value"]
         or Decimal("0.00")
     )
-    service_charges = confirmed_orders.aggregate(value=Sum("service_charge"))[
-        "value"
-    ] or Decimal("0.00")
-    return item_revenue + service_charges
+    return item_revenue
 
 
 @login_required
