@@ -1342,6 +1342,16 @@ class PortalFlowTests(TestCase):
             StaffPushSubscription.objects.get().staff,
             staff,
         )
+        remove_push = self.client.delete(
+            reverse("api_staff_app_push_subscription"),
+            data=json.dumps(
+                {"endpoint": "https://fcm.googleapis.com/fcm/send/pwa-token"}
+            ),
+            content_type="application/json",
+            **auth_headers,
+        )
+        self.assertEqual(remove_push.status_code, 200)
+        self.assertFalse(StaffPushSubscription.objects.exists())
         preflight = self.client.options(
             reverse("api_staff_app_notifications"),
             HTTP_ORIGIN=origin,
@@ -1349,6 +1359,7 @@ class PortalFlowTests(TestCase):
         )
         self.assertEqual(preflight.status_code, 204)
         self.assertIn("Authorization", preflight.headers["Access-Control-Allow-Headers"])
+        self.assertIn("DELETE", preflight.headers["Access-Control-Allow-Methods"])
 
         logout = self.client.post(
             reverse("api_staff_app_logout"),

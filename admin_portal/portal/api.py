@@ -506,11 +506,23 @@ def staff_app_logout(request):
 
 
 @csrf_exempt
-@require_POST
+@require_http_methods(["POST", "DELETE"])
 def staff_app_push_subscription(request):
     profile, error = _staff_app_profile(request)
     if error:
         return error
+    if request.method == "DELETE":
+        data, error = _json_body(request)
+        if error:
+            return error
+        endpoint = data.get("endpoint")
+        if not isinstance(endpoint, str) or not endpoint or len(endpoint) > 2048:
+            return JsonResponse({"error": "Push subscription endpoint is invalid."}, status=400)
+        StaffPushSubscription.objects.filter(
+            staff=profile,
+            endpoint=endpoint,
+        ).delete()
+        return JsonResponse({"status": "disabled"})
     return _save_staff_push_subscription(request, profile)
 
 
