@@ -44,19 +44,21 @@ after guests enter the name on the bank sender account and select **I have
 paid**. Selecting **Confirm Order** records the order and department-specific
 payment notifications for both QR and device orders. The admin dashboard
 updates its activity feed every eight seconds and shows the sender name, room,
-department, and items. An authorized portal operator can open a prefilled
-WhatsApp link to the currently assigned kitchen/bar staff number and tap
-**Send**. WhatsApp is not sent automatically; real automated delivery needs an
-official WhatsApp provider and its credentials/templates.
+department, and items. After order confirmation, guests can open prefilled
+WhatsApp payment messages for the currently assigned department staff and tap
+**Send**; an authorized portal operator can also send from the dashboard.
+WhatsApp is not sent automatically; real automated delivery needs an official
+WhatsApp provider and its credentials/templates.
 
 ## Admin portal and QR ordering
 
 The Django admin portal is deployed in the same Render service as this Flutter
 app. The guest/device app remains at `/`, the admin dashboard is available at
 `/admin`, and room/table QR codes open the ordering homepage at `/?device_id=…`.
-Scanning a QR starts the same homepage flow as a device, with the room ID
-preselected and no manual device-ID entry. Both ordering experiences use the portal's menu, device
-sessions, payment settings, preparation estimates, and order API.
+Scanning a QR starts the same Kitchen, Bar, and Services homepage flow as a
+device, with the room ID preselected and no manual device-ID entry. Both
+ordering experiences use the portal's menu, device sessions, payment settings,
+preparation estimates, and order API.
 Register devices from **Devices** to generate a device ID and enter its room or
 table number; an existing location is reused if the number is already set up.
 The separate **Rooms & Tables QR** flow is for creating locations and QR codes
