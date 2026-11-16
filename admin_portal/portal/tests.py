@@ -2010,8 +2010,14 @@ class PortalFlowTests(TestCase):
         self.assertContains(qr_page, "confirmation flow as the device, in a browser")
         self.assertContains(
             qr_page,
-            f"http://testserver/?device_id={device.device_id}",
+            f"http://testserver/guest-order/?device_id={device.device_id}",
         )
+        guest_order = self.client.get(
+            reverse("guest_order"),
+            {"device_id": device.device_id},
+        )
+        self.assertEqual(guest_order.status_code, 200)
+        self.assertContains(guest_order, device.device_id)
         qr_image = self.client.get(reverse("room_qr_image", args=[self.room.pk]))
         self.assertEqual(qr_image.status_code, 200)
         self.assertEqual(qr_image["Content-Type"], "image/svg+xml")
@@ -2034,11 +2040,11 @@ class PortalFlowTests(TestCase):
         response = self.client.get(reverse("room_qr", args=[self.room.pk]))
         self.assertContains(
             response,
-            f"http://192.168.0.127:8000/?device_id={qr_device.device_id}",
+            f"http://192.168.0.127:8000/guest-order/?device_id={qr_device.device_id}",
         )
 
     @override_settings(GUEST_ORDER_BASE_URL="https://device-demo.onrender.com/admin/")
-    def test_qr_always_opens_ordering_homepage_even_with_admin_path_configured(self):
+    def test_qr_opens_guest_order_route_even_with_path_configured(self):
         self.client.force_login(self.admin)
         response = self.client.post(reverse("room_qr", args=[self.room.pk]))
         self.assertRedirects(response, reverse("room_qr", args=[self.room.pk]))
@@ -2047,7 +2053,7 @@ class PortalFlowTests(TestCase):
 
         self.assertContains(
             response,
-            f"https://device-demo.onrender.com/?device_id={qr_device.device_id}",
+            f"https://device-demo.onrender.com/guest-order/?device_id={qr_device.device_id}",
         )
 
     def test_regenerating_room_qr_reuses_active_device(self):

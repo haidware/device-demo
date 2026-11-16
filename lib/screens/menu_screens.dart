@@ -40,6 +40,7 @@ class KitchenScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 700;
     final categories = <String>{
       'All',
       for (final item in items) item.category,
@@ -48,7 +49,9 @@ class KitchenScreen extends StatelessWidget {
         ? items
         : items.where((item) => item.category == category).toList();
     return ScreenSurface(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 18),
+      padding: isMobileLayout
+          ? const EdgeInsets.fromLTRB(16, 8, 16, 14)
+          : const EdgeInsets.fromLTRB(24, 10, 24, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -104,6 +107,22 @@ class KitchenScreen extends StatelessWidget {
                     child: Text(
                       'No items in this category yet.',
                       style: TextStyle(color: AppColors.muted, fontSize: 17),
+                    ),
+                  )
+                : isMobileLayout
+                ? GridView.builder(
+                    itemCount: visibleItems.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.78,
+                        ),
+                    itemBuilder: (context, index) => _MenuItemCard(
+                      item: visibleItems[index],
+                      index: index,
+                      onTap: () => onSelectItem(visibleItems[index]),
                     ),
                   )
                 : ListView.separated(
@@ -238,70 +257,77 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 700;
+    final artwork = _menuArtwork(item, menuItems.indexOf(item));
+    final itemDetails = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          item.name,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          item.description,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontSize: 17,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                formatPrice(item.price),
+                style: const TextStyle(
+                  color: AppColors.goldLight,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            QuantityStepper(
+              quantity: quantity,
+              onDecrement: onDecrement,
+              onIncrement: onIncrement,
+              compact: true,
+            ),
+          ],
+        ),
+      ],
+    );
     return ScreenSurface(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 20),
+      padding: isMobileLayout
+          ? const EdgeInsets.fromLTRB(16, 8, 16, 14)
+          : const EdgeInsets.fromLTRB(28, 12, 28, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(title: 'Item Detail', onBack: onBack),
           const SizedBox(height: 4),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: _menuArtwork(item, menuItems.indexOf(item)),
-                ),
-                const SizedBox(width: 28),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+            child: isMobileLayout
+                ? Column(
                     children: [
-                      Text(
-                        item.name,
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        item.description,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 17,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              formatPrice(item.price),
-                              style: const TextStyle(
-                                color: AppColors.goldLight,
-                                fontSize: 25,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          QuantityStepper(
-                            quantity: quantity,
-                            onDecrement: onDecrement,
-                            onIncrement: onIncrement,
-                            compact: true,
-                          ),
-                        ],
-                      ),
+                      Expanded(flex: 5, child: artwork),
+                      const SizedBox(height: 16),
+                      Expanded(flex: 4, child: itemDetails),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(flex: 5, child: artwork),
+                      const SizedBox(width: 28),
+                      Expanded(flex: 4, child: itemDetails),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 14),
           InfoPanel(

@@ -7,8 +7,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:device_demo/app.dart';
+import 'package:device_demo/models/order.dart';
 import 'package:device_demo/services/portal_api.dart';
+import 'package:device_demo/screens/menu_screens.dart';
 import 'package:device_demo/screens/welcome_screens.dart';
+import 'package:device_demo/widgets/app_widgets.dart';
 
 void main() {
   test('greeting follows local time of day', () {
@@ -52,6 +55,80 @@ void main() {
       find.text('This room QR is not connected to the ordering portal yet.'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'QR guests use the full phone viewport; devices keep the canvas',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const HaidwareApp());
+      expect(find.byType(DeviceCanvas), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        HaidwareApp(
+          initialUri: Uri.parse('https://example.test/?device_id=123456'),
+        ),
+      );
+
+      expect(find.byType(DeviceCanvas), findsNothing);
+      expect(
+        find.text('${greetingForTime(DateTime.now())} 👋'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('menu uses a larger two-column layout on phone screens', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KitchenScreen(
+            items: menuItems.take(3).toList(),
+            department: 'kitchen',
+            category: 'All',
+            cartCount: 0,
+            onSelectCategory: (_) {},
+            onOpenCart: () {},
+            onSelectItem: (_) {},
+            onBack: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(GridView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DetailScreen(
+            item: menuItems.first,
+            quantity: 1,
+            onDecrement: () {},
+            onIncrement: () {},
+            onAddToCart: () {},
+            onBack: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Add to Cart'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

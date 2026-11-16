@@ -252,8 +252,34 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobileQrGuest = isQrGuest && MediaQuery.sizeOf(context).width < 700;
+    final categoryCards = [
+      _CategoryCard(
+        title: 'Kitchen',
+        subtitle: 'Delicious meals',
+        icon: Icons.restaurant_menu,
+        onTap: onOpenKitchen,
+        variant: 0,
+      ),
+      _CategoryCard(
+        title: 'Bar',
+        subtitle: 'Signature drinks & moments',
+        icon: Icons.local_bar,
+        onTap: onOpenBar,
+        variant: 1,
+      ),
+      _CategoryCard(
+        title: 'Services',
+        subtitle: 'Considered care, on request',
+        icon: Icons.room_service_outlined,
+        onTap: onOpenServices,
+        variant: 2,
+      ),
+    ];
     return ScreenSurface(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 22),
+      padding: isMobileQrGuest
+          ? const EdgeInsets.fromLTRB(18, 12, 18, 16)
+          : const EdgeInsets.fromLTRB(28, 12, 28, 22),
       child: Stack(
         children: [
           IgnorePointer(
@@ -380,37 +406,20 @@ class HomeScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 12),
                 Expanded(
-                  child: Row(
+                  child: Flex(
+                    direction: isMobileQrGuest
+                        ? Axis.vertical
+                        : Axis.horizontal,
                     children: [
-                      Expanded(
-                        child: _CategoryCard(
-                          title: 'Kitchen',
-                          subtitle: 'Delicious meals',
-                          icon: Icons.restaurant_menu,
-                          onTap: onOpenKitchen,
-                          variant: 0,
+                      for (var index = 0; index < categoryCards.length; index++)
+                        Expanded(
+                          child: Padding(
+                            padding: isMobileQrGuest
+                                ? EdgeInsets.only(top: index == 0 ? 0 : 10)
+                                : EdgeInsets.only(left: index == 0 ? 0 : 12),
+                            child: categoryCards[index],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _CategoryCard(
-                          title: 'Bar',
-                          subtitle: 'Signature drinks & moments',
-                          icon: Icons.local_bar,
-                          onTap: onOpenBar,
-                          variant: 1,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _CategoryCard(
-                          title: 'Services',
-                          subtitle: 'Considered care, on request',
-                          icon: Icons.room_service_outlined,
-                          onTap: onOpenServices,
-                          variant: 2,
-                        ),
-                      ),
                     ],
                   ),
                 ),

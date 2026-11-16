@@ -10,4 +10,4 @@ def guest_order_qr_url(request, device_id):
         raise ValueError("GUEST_ORDER_BASE_URL must be an absolute HTTP(S) app URL.")
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query["device_id"] = str(device_id)
-    return urlunsplit((parts.scheme, parts.netloc, "/", urlencode(query), ""))
+    return urlunsplit((parts.scheme, parts.netloc, "/guest-order/", urlencode(query), ""))

@@ -476,6 +476,8 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobileQrGuest =
+        _isQrGuest && MediaQuery.sizeOf(context).width < 700;
     return PopScope(
       canPop: _page == AppPage.splash && _history.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
@@ -484,15 +486,17 @@ class _HospitalityOrderDemoState extends State<HospitalityOrderDemo> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1100),
-                child: DeviceCanvas(child: _buildPage(_page)),
-              ),
-            ),
-          ),
+          child: isMobileQrGuest
+              ? _buildPage(_page)
+              : Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1100),
+                      child: DeviceCanvas(child: _buildPage(_page)),
+                    ),
+                  ),
+                ),
         ),
       ),
     );

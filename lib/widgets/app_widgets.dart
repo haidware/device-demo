@@ -15,9 +15,12 @@ class DeviceCanvas extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: ColoredBox(
           color: AppColors.background,
-          child: FittedBox(
-            fit: BoxFit.fill,
-            child: SizedBox(width: 800, height: 480, child: child),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(size: const Size(800, 480)),
+            child: FittedBox(
+              fit: BoxFit.fill,
+              child: SizedBox(width: 800, height: 480, child: child),
+            ),
           ),
         ),
       ),
